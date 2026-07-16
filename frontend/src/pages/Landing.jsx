@@ -53,7 +53,7 @@ const Landing = () => {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.04),transparent_50%)]" />
         </div>
 
-        <div className="relative app-container py-24 lg:py-32">
+        <div className="relative app-container py-24 lg:py-9">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial="hidden"

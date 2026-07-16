@@ -72,7 +72,7 @@ const HowItWorks = () => {
         <div className="absolute top-10 right-10 h-60 w-60 rounded-full bg-forge-secondary/20 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
 
-        <div className="relative mx-auto flex max-w-7xl flex-col px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+        <div className="relative mx-auto flex max-w-7xl flex-col px-4 py-24 sm:px-6 lg:px-8 lg:py-13">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
