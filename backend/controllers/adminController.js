@@ -1,0 +1,296 @@
+const asyncHandler = require("express-async-handler");
+const User = require("../models/User");
+const Project = require("../models/Project");
+const Application = require("../models/Application");
+
+// @desc Admin creates an evaluator or admin account
+// @route POST /api/admin/users
+const createStaffUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  if (!["evaluator", "admin"].includes(role)) {
+    res.status(400);
+    throw new Error("Staff accounts must be created with role 'evaluator' or 'admin'");
+  }
+
+  const exists = await User.findOne({ email });
+  if (exists) {
+    res.status(400);
+    throw new Error("A user with this email already exists");
+  }
+
+  const user = await User.create({ name, email, password, role });
+  res.status(201).json({ success: true, user: user.toSafeObject() });
+});
+
+// @desc List all users (admin only)
+// @route GET /api/admin/users
+const getAllUsers = asyncHandler(async (req, res) => {
+  const { role, search, page = 1, limit = 20 } = req.query;
+
+  const query = {};
+  if (role) query.role = role;
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { companyName: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [users, total] = await Promise.all([
+    User.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    User.countDocuments(query),
+  ]);
+
+  res.json({
+    success: true,
+    users,
+    total,
+    page: Number(page),
+    pages: Math.ceil(total / Number(limit)),
+  });
+});
+
+// @desc Activate or deactivate a user account
+// @route PUT /api/admin/users/:id/status
+const setUserActiveStatus = asyncHandler(async (req, res) => {
+  const { isActive } = req.body;
+
+  if (req.params.id === req.user._id.toString()) {
+    res.status(400);
+    throw new Error("You cannot change your own account status");
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.isActive = Boolean(isActive);
+  await user.save();
+  res.json({ success: true, user: user.toSafeObject() });
+});
+
+// @desc Delete a user account
+// @route DELETE /api/admin/users/:id
+const deleteUser = asyncHandler(async (req, res) => {
+  if (req.params.id === req.user._id.toString()) {
+    res.status(400);
+    throw new Error("You cannot delete your own account");
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  await user.deleteOne();
+  res.json({ success: true, message: "User deleted successfully" });
+});
+
+// @desc Admin get all projects (including deleted, with search/filter)
+// @route GET /api/admin/projects
+const getAdminProjects = asyncHandler(async (req, res) => {
+  const { search, status, type, page = 1, limit = 20 } = req.query;
+  const query = {};
+  if (status && status !== "all") query.status = status;
+  if (type) query.applicationMode = type;
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: "i" } },
+      { jobRole: { $regex: search, $options: "i" } },
+    ];
+  }
+  const skip = (Number(page) - 1) * Number(limit);
+  const [projects, total] = await Promise.all([
+    Project.find(query)
+      .populate("company", "name companyName email industry")
+      .populate("deletedBy", "name companyName")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    Project.countDocuments(query),
+  ]);
+  res.json({ success: true, projects, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+});
+
+// @desc Admin soft delete any project
+// @route DELETE /api/admin/projects/:id
+const adminDeleteProject = asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    res.status(404);
+    throw new Error("Project not found");
+  }
+  project.status = "archived";
+  project.isDeleted = true;
+  project.deletedAt = new Date();
+  project.deletedBy = req.user._id;
+  await project.save();
+  res.json({ success: true, message: "Project deleted" });
+});
+
+// @desc Get all deleted items (projects/jobs) for Deleted Reports
+// @route GET /api/admin/deleted-items
+const getDeletedItems = asyncHandler(async (req, res) => {
+  const { search, type, page = 1, limit = 20 } = req.query;
+  const query = { isDeleted: true };
+  if (type && type !== "all") {
+    if (type === "job") query.applicationMode = "direct_hire";
+    else if (type === "project") query.applicationMode = "project";
+  }
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: "i" } },
+      { jobRole: { $regex: search, $options: "i" } },
+    ];
+  }
+  const skip = (Number(page) - 1) * Number(limit);
+  const [items, total] = await Promise.all([
+    Project.find(query)
+      .populate("company", "name companyName email")
+      .populate("deletedBy", "name companyName role")
+      .sort({ deletedAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    Project.countDocuments(query),
+  ]);
+  const data = items.map((item) => ({
+    _id: item._id,
+    companyName: item.company?.companyName || item.company?.name || "Unknown",
+    company: item.company,
+    title: item.title,
+    type: item.applicationMode === "direct_hire" ? "Job" : "Project",
+    postedDate: item.createdAt,
+    deletedDate: item.deletedAt,
+    status: item.status,
+    deletedBy: item.deletedBy,
+    deletedByName: item.deletedBy?.companyName || item.deletedBy?.name || "Unknown",
+  }));
+  res.json({ success: true, items: data, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+});
+
+// @desc Restore a deleted item
+// @route PUT /api/admin/deleted-items/:id/restore
+const restoreDeletedItem = asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    res.status(404);
+    throw new Error("Item not found");
+  }
+  project.isDeleted = false;
+  project.deletedAt = undefined;
+  project.deletedBy = undefined;
+  project.status = "open";
+  await project.save();
+  res.json({ success: true, message: "Item restored", project });
+});
+
+// @desc Permanently delete an item
+// @route DELETE /api/admin/deleted-items/:id/permanent
+const permanentDeleteItem = asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    res.status(404);
+    throw new Error("Item not found");
+  }
+  await project.deleteOne();
+  res.json({ success: true, message: "Item permanently deleted" });
+});
+
+// @desc Admin dashboard analytics
+// @route GET /api/admin/analytics
+const getAdminAnalytics = asyncHandler(async (req, res) => {
+  const [
+    totalCompanies,
+    totalActiveCompanies,
+    totalJobs,
+    totalProjects,
+    totalDeletedJobs,
+    totalDeletedProjects,
+    totalActiveJobs,
+    totalActiveProjects,
+    totalHired,
+    totalApplications,
+  ] = await Promise.all([
+    User.countDocuments({ role: "company" }),
+    User.countDocuments({ role: "company", isActive: true }),
+    Project.countDocuments({ applicationMode: "direct_hire" }),
+    Project.countDocuments({ applicationMode: "project" }),
+    Project.countDocuments({ applicationMode: "direct_hire", isDeleted: true }),
+    Project.countDocuments({ applicationMode: "project", isDeleted: true }),
+    Project.countDocuments({ applicationMode: "direct_hire", isDeleted: { $ne: true }, status: "open" }),
+    Project.countDocuments({ applicationMode: "project", isDeleted: { $ne: true }, status: "open" }),
+    Application.countDocuments({ status: "hired" }),
+    Application.countDocuments(),
+  ]);
+  res.json({
+    success: true,
+    stats: {
+      totalCompanies,
+      totalActiveCompanies,
+      totalJobs,
+      totalProjects,
+      totalDeletedJobs,
+      totalDeletedProjects,
+      totalActiveJobs,
+      totalActiveProjects,
+      totalHired,
+      totalApplications,
+    },
+  });
+});
+
+// @desc Get hired candidates with details
+// @route GET /api/admin/hired-candidates
+const getHiredCandidates = asyncHandler(async (req, res) => {
+  const { search, page = 1, limit = 20 } = req.query;
+  const query = { status: "hired" };
+  if (search) {
+    query.$or = [
+      { applicantName: { $regex: search, $options: "i" } },
+    ];
+  }
+  const skip = (Number(page) - 1) * Number(limit);
+  const [applications, total] = await Promise.all([
+    Application.find(query)
+      .populate("candidate", "name email")
+      .populate({
+        path: "project",
+        select: "title jobRole company",
+        populate: { path: "company", select: "name companyName" },
+      })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    Application.countDocuments(query),
+  ]);
+  const data = applications.map((app) => ({
+    _id: app._id,
+    candidateName: app.candidate?.name || app.applicantName,
+    candidateEmail: app.candidate?.email,
+    projectTitle: app.project?.title,
+    jobRole: app.project?.jobRole,
+    companyName: app.project?.company?.companyName || app.project?.company?.name,
+    hiredAt: app.updatedAt,
+  }));
+  res.json({ success: true, items: data, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+});
+
+module.exports = {
+  createStaffUser,
+  getAllUsers,
+  setUserActiveStatus,
+  deleteUser,
+  getAdminProjects,
+  adminDeleteProject,
+  getDeletedItems,
+  restoreDeletedItem,
+  permanentDeleteItem,
+  getAdminAnalytics,
+  getHiredCandidates,
+};

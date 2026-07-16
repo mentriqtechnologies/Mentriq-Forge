@@ -1,0 +1,269 @@
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
+import { Mail, Lock, User, Building2, ArrowRight, Users, Briefcase, Check } from "lucide-react";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.07, delayChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+
+const benefits = {
+  candidate: [
+    "Work on real-world projects",
+    "Get evaluated by industry experts",
+    "Build your portfolio",
+    "Get shortlisted for top companies",
+  ],
+  company: [
+    "Post real project briefs",
+    "Evaluate candidates through work",
+    "Access pre-vetted talent pool",
+    "Reduce hiring time by 60%",
+  ],
+};
+
+const Register = () => {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [role, setRole] = useState("candidate");
+  const [form, setForm] = useState({ name: "", email: "", password: "", companyName: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const user = await register({ ...form, role });
+      navigate(user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Registration failed";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex-1 flex items-center justify-center px-6 py-12"
+      >
+        <div className="w-full max-w-sm">
+          <motion.div variants={itemVariants} className="mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
+              <span className="font-heading font-bold text-xl text-slate-900">MentriQ Forge</span>
+            </div>
+            <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2">Create your account</h1>
+            <p className="text-slate-500">Start your journey with MentriQ Forge.</p>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="flex gap-2 p-1 rounded-xl bg-slate-100 mb-6">
+            {[
+              { value: "candidate", label: "Candidate", icon: Users },
+              { value: "company", label: "Company", icon: Building2 },
+            ].map((r) => {
+              const Icon = r.icon;
+              const isActive = role === r.value;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRole(r.value)}
+                  className={`
+                    flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold capitalize
+                    transition-all duration-200
+                    ${isActive
+                      ? "bg-white text-forge-primary shadow-subtle"
+                      : "text-slate-500 hover:text-slate-700"
+                    }
+                  `}
+                >
+                  <Icon className="w-4 h-4" />
+                  {r.label}
+                </button>
+              );
+            })}
+          </motion.div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6 flex items-center gap-3"
+            >
+              <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4 text-red-600" />
+              </div>
+              {error}
+            </motion.div>
+          )}
+
+          <motion.form variants={itemVariants} onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Full name"
+              placeholder="John Doe"
+              icon={User}
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+
+            {role === "company" && (
+              <Input
+                label="Company name"
+                placeholder="Acme Inc."
+                icon={Building2}
+                required
+                value={form.companyName}
+                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+              />
+            )}
+
+            <Input
+              label="Email address"
+              type="email"
+              placeholder="you@company.com"
+              icon={Mail}
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              placeholder="Min. 6 characters"
+              icon={Lock}
+              required
+              minLength={6}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-forge-primary focus:ring-forge-primary/30 shrink-0"
+              />
+              <span className="text-xs text-slate-500 leading-relaxed">
+                I have read and agree to the{" "}
+                <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
+                  Privacy Policy
+                </Link>.
+              </span>
+            </label>
+
+            <Button type="submit" fullWidth loading={loading} icon={ArrowRight} size="lg" disabled={!accepted}>
+              Create Account
+            </Button>
+          </motion.form>
+
+          <motion.p variants={itemVariants} className="text-center text-xs text-slate-400 mt-4">
+            By continuing, you agree to MentriQ Forge's{" "}
+            <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Terms of Service</Link>{" "}
+            and{" "}
+            <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Privacy Policy</Link>.
+          </motion.p>
+
+          <motion.p variants={itemVariants} className="text-sm text-slate-500 mt-8 text-center">
+            Already have an account?{" "}
+            <Link to="/login" className="text-forge-primary hover:text-forge-primary-dark font-semibold">
+              Sign in
+            </Link>
+          </motion.p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 to-slate-950 relative overflow-hidden"
+      >
+        <div className="absolute inset-0">
+          <div className="absolute top-20 -right-20 w-96 h-96 bg-forge-primary/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-forge-secondary/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 flex flex-col justify-center px-16 py-24">
+          <div className="max-w-md">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-white/80 text-xs font-semibold mb-8">
+              <Briefcase className="w-3.5 h-3.5" />
+              {role === "candidate" ? "For Candidates" : "For Companies"}
+            </div>
+
+            <h2 className="text-4xl font-bold font-heading text-white leading-tight mb-4">
+              {role === "candidate"
+                ? "Build your career with real projects"
+                : "Hire the best through real work"}
+            </h2>
+
+            <p className="text-white/60 text-lg leading-relaxed mb-10">
+              {role === "candidate"
+                ? "Skip the resume black hole. Show your skills through real projects and get noticed by top companies."
+                : "Stop relying on resumes. See what candidates can actually build before you interview them."}
+            </p>
+
+            <div className="space-y-4">
+              {benefits[role].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <span className="text-white/80 text-sm">{item}</span>
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="mt-12 pt-8 border-t border-white/10"
+            >
+              <p className="text-white/40 text-xs">
+                By creating an account, you agree to our{" "}
+                <Link to="/terms-of-service" className="text-white/60 hover:text-white underline underline-offset-2">Terms of Service</Link>{" "}
+                and{" "}
+                <Link to="/privacy-policy" className="text-white/60 hover:text-white underline underline-offset-2">Privacy Policy</Link>.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default Register;
