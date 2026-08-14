@@ -3,6 +3,7 @@ const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { sendEmail } = require("../utils/email");
+const { deleteUserWithCascade } = require("../utils/userCascade");
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -121,6 +122,18 @@ const updateMe = asyncHandler(async (req, res) => {
 
   const updated = await req.user.save();
   res.json({ success: true, user: updated.toSafeObject() });
+});
+
+// @desc Delete own account (cascades through all owned data)
+// @route DELETE /api/auth/me
+const deleteMe = asyncHandler(async (req, res) => {
+  if (req.user.role === "admin") {
+    res.status(400);
+    throw new Error("Admin accounts cannot be deleted from the app. Ask another admin to delete it.");
+  }
+
+  await deleteUserWithCascade(req.user);
+  res.json({ success: true, message: "Account deleted successfully" });
 });
 
 // @desc Redirect user to GitHub OAuth (login / signup)
@@ -492,4 +505,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, forgotPassword, resetPassword };
+module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, forgotPassword, resetPassword };

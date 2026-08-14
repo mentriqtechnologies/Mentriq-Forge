@@ -51,7 +51,7 @@ const featureCards = [
 const Landing = () => {
   return (
     <div className="overflow-hidden">
-      <section className="relative min-h-[68vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[54vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-24 left-10 h-72 w-72 rounded-full bg-forge-primary/10 blur-3xl" />
           <div className="absolute right-8 top-20 h-80 w-80 rounded-full bg-forge-secondary/10 blur-3xl" />
@@ -59,7 +59,7 @@ const Landing = () => {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.07),transparent_42%)]" />
         </div>
 
-        <div className="relative app-container py-6 lg:py-8">
+        <div className="relative app-container py-5 lg:py-6">
           <div className="grid items-center gap-6 lg:grid-cols-[1.02fr_0.98fr]">
             <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-2xl">
               <motion.div variants={fadeUp} className="soft-badge mb-3">
@@ -106,59 +106,81 @@ const Landing = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="portal-card overflow-hidden p-4 sm:p-6"
             >
-              <div className="rounded-[24px] bg-slate-950 p-3.5 text-white">
-                <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/10">
-                  <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
-                    <div>
-                      <p className="font-heading font-bold text-lg">MentriQ Portal</p>
-                      <p className="text-xs text-slate-300">Candidate evaluation workspace</p>
+              <div className="rounded-[24px] bg-slate-950 p-4 sm:p-5 text-white">
+                <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img src="/logo.png" alt="MentriQ Forge" className="h-8 w-auto shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-heading font-bold text-sm sm:text-base lg:text-lg truncate">MentriQ Portal</p>
+                      <p className="text-[11px] text-slate-300 truncate">Candidate evaluation workspace</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Live
                   </div>
                 </div>
 
-                <div className="grid gap-2.5 py-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white/5 p-3">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Shortlisted</p>
-                    <p className="mt-1 text-3xl font-extrabold text-white">121</p>
-                    <p className="mt-0.5 text-sm text-slate-300">Top candidates ready for interviews</p>
+                <div className="grid grid-cols-3 gap-2 py-4 sm:gap-2.5">
+                  <div className="rounded-2xl bg-white/5 px-1 py-2.5 sm:p-3 text-center">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.14em] text-slate-400 leading-tight">Submissions</p>
+                    <p className="mt-0.5 text-xl sm:text-3xl font-extrabold text-white">248</p>
                   </div>
-                  <div className="rounded-2xl bg-white/5 p-3">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Avg. Score</p>
-                    <p className="mt-1 text-3xl font-extrabold text-white">8.4</p>
-                    <p className="mt-0.5 text-sm text-slate-300">Across technical and project quality</p>
+                  <div className="rounded-2xl bg-white/5 px-1 py-2.5 sm:p-3 text-center">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.14em] text-slate-400 leading-tight">Shortlisted</p>
+                    <p className="mt-0.5 text-xl sm:text-3xl font-extrabold text-emerald-300">121</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/5 px-1 py-2.5 sm:p-3 text-center">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.14em] text-slate-400 leading-tight">Avg. Score</p>
+                    <p className="mt-0.5 text-xl sm:text-3xl font-extrabold text-amber-300">8.4</p>
                   </div>
                 </div>
 
                 <div className="rounded-2xl bg-white/5 p-3 space-y-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">Hiring pipeline</p>
-                      <p className="text-xs text-slate-300">View score trends and candidate status</p>
+                  <div className="flex items-center justify-between gap-3 pb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BarChart3 className="h-4 w-4 text-forge-primary shrink-0" />
+                      <p className="text-[13px] sm:text-sm font-semibold text-white truncate">Candidate scores</p>
                     </div>
-                    <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">Updated now</button>
+                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] sm:text-[11px] text-slate-200">
+                      Updated now
+                    </span>
                   </div>
 
                   {[
-                    { name: "Frontend Developer", score: "92%", tag: "Strong fit" },
-                    { name: "Full Stack Engineer", score: "88%", tag: "Verified" },
-                    { name: "AI Product Analyst", score: "84%", tag: "Reviewing" },
+                    { name: "Aarav Sharma", role: "Frontend Developer", score: 92, tag: "Strong fit", tagClass: "bg-emerald-500/15 text-emerald-300", bar: "from-emerald-500 to-emerald-300", avatar: "from-forge-primary to-blue-500" },
+                    { name: "Priya Patel", role: "Full Stack Engineer", score: 88, tag: "Verified", tagClass: "bg-blue-500/15 text-blue-300", bar: "from-forge-primary to-blue-400", avatar: "from-forge-secondary to-orange-400" },
+                    { name: "Rohan Mehta", role: "AI Product Analyst", score: 84, tag: "Reviewing", tagClass: "bg-amber-500/15 text-amber-300", bar: "from-amber-500 to-amber-300", avatar: "from-purple-500 to-pink-500" },
                   ].map((item) => (
-                    <div key={item.name} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-white">{item.name}</p>
-                        <p className="text-xs text-slate-300">{item.tag}</p>
+                    <div key={item.name} className="rounded-xl bg-white/5 px-2.5 py-2.5 sm:px-3 sm:py-3">
+                      <div className="flex items-center justify-between gap-2.5 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`h-7 w-7 sm:h-8 sm:w-8 shrink-0 rounded-full bg-gradient-to-br ${item.avatar} flex items-center justify-center text-[10px] sm:text-xs font-bold text-white`}>
+                            {item.name.split(" ").map((n) => n[0]).join("")}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] sm:text-sm font-semibold text-white truncate">{item.name}</p>
+                            <p className="text-[10px] sm:text-[11px] text-slate-300 truncate">{item.role}</p>
+                          </div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold ${item.tagClass}`}>
+                          {item.tag}
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-emerald-300">{item.score}</p>
-                        <p className="text-[11px] text-slate-400">score</p>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+                          <div className={`h-full rounded-full bg-gradient-to-r ${item.bar}`} style={{ width: `${item.score}%` }} />
+                        </div>
+                        <span className="text-[11px] sm:text-xs font-bold text-white w-8 sm:w-9 text-right shrink-0">{item.score}%</span>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/5 p-1.5 text-center text-[11px] font-semibold">
+                  <span className="rounded-xl bg-white/10 py-1.5 text-white">Submissions</span>
+                  <span className="py-1.5 text-slate-400">Applications</span>
+                  <span className="py-1.5 text-slate-400">Hires</span>
                 </div>
               </div>
             </motion.div>

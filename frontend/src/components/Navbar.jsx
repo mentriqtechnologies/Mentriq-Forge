@@ -40,8 +40,8 @@ const Navbar = () => {
               <div className="flex items-center gap-3">
                 <img src="/logo.png" alt="MentriQ Forge" className="h-8 w-auto" />
                 <div>
-                  <p className="font-heading font-bold text-slate-900 ">MentriQ</p>
-                  <p className="text-xs text-slate-400">Forge</p>
+                  <p className="font-heading font-bold text-forge-primary">MentriQ</p>
+                  <p className="text-xs font-semibold text-forge-secondary">Forge</p>
                 </div>
               </div>
               <button
@@ -98,8 +98,8 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-3">
           <img src="/logo.png" alt="MentriQ Forge" className="h-8 w-auto" />
           <div className="hidden sm:block">
-            <span className="font-heading font-bold text-lg text-slate-900">MentriQ</span>
-            <span className="font-heading font-light text-lg text-slate-400"> Forge</span>
+            <span className="font-heading font-bold text-lg text-forge-primary">MentriQ</span>
+            <span className="font-heading font-light text-lg text-forge-secondary"> Forge</span>
           </div>
         </Link>
 

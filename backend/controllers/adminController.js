@@ -2,7 +2,10 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
 const Project = require("../models/Project");
 const Application = require("../models/Application");
+const Submission = require("../models/Submission");
+const Evaluation = require("../models/Evaluation");
 const { getPagination } = require("../utils/pagination");
+const { deleteUserWithCascade } = require("../utils/userCascade");
 
 // @desc Admin creates an evaluator or admin account
 // @route POST /api/admin/users
@@ -80,7 +83,7 @@ const setUserActiveStatus = asyncHandler(async (req, res) => {
   res.json({ success: true, user: user.toSafeObject() });
 });
 
-// @desc Delete a user account
+// @desc Delete a user account (cascades through all data owned by the user)
 // @route DELETE /api/admin/users/:id
 const deleteUser = asyncHandler(async (req, res) => {
   if (req.params.id === req.user._id.toString()) {
@@ -94,7 +97,7 @@ const deleteUser = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
-  await user.deleteOne();
+  await deleteUserWithCascade(user);
   res.json({ success: true, message: "User deleted successfully" });
 });
 
@@ -198,7 +201,7 @@ const restoreDeletedItem = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Item restored", project });
 });
 
-// @desc Permanently delete an item
+// @desc Permanently delete an item (cascades through applicants' data for that item)
 // @route DELETE /api/admin/deleted-items/:id/permanent
 const permanentDeleteItem = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
@@ -206,6 +209,10 @@ const permanentDeleteItem = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Item not found");
   }
+  const submissions = await Submission.find({ project: project._id }).select("_id");
+  await Evaluation.deleteMany({ submission: { $in: submissions.map((s) => s._id) } });
+  await Submission.deleteMany({ project: project._id });
+  await Application.deleteMany({ project: project._id });
   await project.deleteOne();
   res.json({ success: true, message: "Item permanently deleted" });
 });
