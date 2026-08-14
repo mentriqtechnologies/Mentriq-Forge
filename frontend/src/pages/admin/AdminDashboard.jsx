@@ -6,7 +6,7 @@ import {
   Clock, CheckCircle, Users, Building2, FileText, Shield,
   ChevronDown, ChevronRight, ArrowRight, ExternalLink,
   GitBranch, Activity, Code2, RefreshCw, BarChart3,
-  BookOpen, Target, Sparkles, Search, Briefcase, Trash2,
+  BookOpen, Target, Sparkles, Search, Briefcase, Trash2, ClipboardList,
   Archive,
 } from "lucide-react";
 import {
@@ -200,6 +200,16 @@ const quickActions = [
     border: "border-red-500/20",
     hoverBorder: "hover:border-red-500/40",
     textColor: "text-red-600",
+  },
+  {
+    to: "/admin/manage-jobs",
+    title: "Manage Jobs & Projects",
+    desc: "View and delete all active job listings",
+    icon: ClipboardList,
+    gradient: "from-orange-500/10 to-orange-500/5",
+    border: "border-orange-500/20",
+    hoverBorder: "hover:border-orange-500/40",
+    textColor: "text-orange-600",
   },
   {
     to: "/admin/applications",

@@ -22,6 +22,7 @@ import {
   Archive,
   Building2,
   Award,
+  ClipboardList,
 } from "lucide-react";
 
 const roleNavItems = {
@@ -51,6 +52,7 @@ const roleNavItems = {
     { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
     { to: "/admin/submissions", label: "Submissions", icon: FileText },
     { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
+    { to: "/admin/manage-jobs", label: "Manage Jobs & Projects", icon: ClipboardList },
     { to: "/admin/users", label: "Manage Users", icon: Shield },
     { to: "/admin/deleted-reports", label: "Deleted Reports", icon: Archive },
     { to: "/profile", label: "Profile", icon: UserCircle },

@@ -30,6 +30,7 @@ import CandidateSettings from "./pages/candidate/CandidateSettings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import EvaluateSubmission from "./pages/admin/EvaluateSubmission";
 import ManageUsers from "./pages/admin/ManageUsers";
+import ManageJobs from "./pages/admin/ManageJobs";
 import SubmissionsManager from "./pages/admin/SubmissionsManager";
 import DeletedReports from "./pages/admin/DeletedReports";
 import CandidateVerification from "./pages/admin/CandidateVerification";
@@ -185,6 +186,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
               <AuthLayout><DeletedReports /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/manage-jobs"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AuthLayout><ManageJobs /></AuthLayout>
             </ProtectedRoute>
           }
         />
