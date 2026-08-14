@@ -21,6 +21,7 @@ import {
   X,
   Archive,
   Building2,
+  Award,
 } from "lucide-react";
 
 const roleNavItems = {
@@ -38,12 +39,18 @@ const roleNavItems = {
   ],
   evaluator: [
     { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/admin/applications", label: "Applications", icon: Briefcase },
+    { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
     { to: "/admin/submissions", label: "Submissions", icon: FileText },
+    { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
     { to: "/profile", label: "Profile", icon: UserCircle },
   ],
   admin: [
     { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/admin/applications", label: "Applications", icon: Briefcase },
+    { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
     { to: "/admin/submissions", label: "Submissions", icon: FileText },
+    { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
     { to: "/admin/users", label: "Manage Users", icon: Shield },
     { to: "/admin/deleted-reports", label: "Deleted Reports", icon: Archive },
     { to: "/profile", label: "Profile", icon: UserCircle },
@@ -75,12 +82,14 @@ const Sidebar = ({ isMobileOpen, onMobileClose }) => {
         </div>
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
         <button
           onClick={onMobileClose}
+          aria-label="Close navigation menu"
           className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <X className="w-4 h-4" />
@@ -169,6 +178,10 @@ const Sidebar = ({ isMobileOpen, onMobileClose }) => {
               exit={{ x: -300 }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
               className="absolute left-0 top-0 bottom-0 w-11/12 max-w-sm sm:w-80 md:w-96 bg-white border-r border-slate-200"
+              id="mobile-sidebar"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
               onClick={(e) => e.stopPropagation()}
             >
               {sidebarContent}

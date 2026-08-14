@@ -7,13 +7,16 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-slate-50">
+      <a href="#main-content" className="skip-link" aria-label="Skip to main content">
+        Skip to main content
+      </a>
       <Sidebar
         isMobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuToggle={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <Topbar onMenuToggle={() => setMobileOpen(true)} mobileOpen={mobileOpen} />
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

@@ -23,7 +23,7 @@ const SubmissionsManager = () => {
 
   useEffect(() => {
     api
-      .get("/submissions/pending")
+      .get("/submissions/pending", { params: { status: "all" } })
       .then((res) => {
         setSubmissions(res.data.submissions);
         setFilteredSubmissions(res.data.submissions);
@@ -64,7 +64,7 @@ const SubmissionsManager = () => {
         description="Review and evaluate candidate project submissions."
       />
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard label="Total Submissions" value={submissions.length} icon={FileText} color="forge" />
         <StatCard label="Pending Review" value={pendingCount} icon={Clock} color="orange" />
         <StatCard label="Reviewed" value={reviewedCount} icon={CheckCircle} color="green" />

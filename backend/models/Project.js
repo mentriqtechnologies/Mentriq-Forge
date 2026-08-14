@@ -74,5 +74,9 @@ const projectSchema = new mongoose.Schema(
 );
 
 projectSchema.index({ status: 1, domain: 1 });
+projectSchema.index({ company: 1, createdAt: -1 });
+projectSchema.index({ applicationMode: 1, isDeleted: 1, status: 1 });
+projectSchema.index({ isDeleted: 1, deletedAt: -1 });
+projectSchema.index({ applicationMode: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Project", projectSchema);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
@@ -6,12 +6,52 @@ import {
   User, Phone, FileText, Link, Award, Globe,
   CheckCircle, XCircle, Save, Shield, Lock,
   Eye, EyeOff, Bell, Trash2, AlertTriangle,
-  GitBranch,
+  GitBranch, BadgeCheck, Clock, Send,
 } from "lucide-react";
-import { PageHeader, Card, Input, Select, Button, Avatar, Badge, Modal } from "../../components/ui";
+import { PageHeader, Card, Input, Select, Button, Avatar, Badge, StatusBadge, Modal } from "../../components/ui";
 
 const CandidateSettings = () => {
   const { user, setUser, logout } = useAuth();
+
+  const [verification, setVerification] = useState(null);
+  const [missingFields, setMissingFields] = useState([]);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/verification/me")
+      .then((res) => {
+        setVerification(res.data.verification);
+        setMissingFields(res.data.missingFields || []);
+      })
+      .catch(() => {});
+  }, []);
+
+  const refreshVerification = async () => {
+    try {
+      const res = await api.get("/verification/me");
+      setVerification(res.data.verification);
+      setMissingFields(res.data.missingFields || []);
+    } catch {}
+  };
+
+  const handleSubmitVerification = async () => {
+    setVerificationError("");
+    setVerificationMessage("");
+    setVerificationLoading(true);
+    try {
+      const res = await api.post("/verification/submit");
+      setVerification(res.data.verification);
+      setMissingFields([]);
+      setVerificationMessage(res.data.message);
+    } catch (err) {
+      setVerificationError(err.response?.data?.message || "Failed to submit profile for review");
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
 
   const [profile, setProfile] = useState({
     name: user?.name || "",
@@ -68,6 +108,7 @@ const CandidateSettings = () => {
       setUser(res.data.user);
       localStorage.setItem("forge_user", JSON.stringify(res.data.user));
       setProfileMessage("Profile updated successfully.");
+      refreshVerification();
     } catch (err) {
       setProfileError(err.response?.data?.message || "Failed to update profile");
     } finally {
@@ -123,6 +164,89 @@ const CandidateSettings = () => {
       />
 
       <div className="space-y-6">
+        <Card padding={false} hover={false}>
+          <div className="p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
+              <BadgeCheck className="w-5 h-5 text-forge-primary" />
+              <div>
+                <h2 className="text-lg font-bold font-heading text-slate-900">Profile Verification</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  The MentriQ team reviews your profile. Only approved profiles are visible to companies.
+                </p>
+              </div>
+              {verification && <StatusBadge status={verification.status} />}
+            </div>
+
+            {verification?.status === "approved" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4 flex items-start gap-3 mb-4">
+                <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Your profile is approved!</p>
+                  <p className="text-emerald-600 mt-0.5">You are now visible to companies on MentriQ Forge.</p>
+                </div>
+              </div>
+            )}
+
+            {verification?.status === "pending" && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl p-4 flex items-start gap-3 mb-4">
+                <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Profile under review</p>
+                  <p className="text-amber-600 mt-0.5">
+                    Your profile was submitted {verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : ""}. The MentriQ team will approve it shortly.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {verification?.status === "rejected" && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 flex items-start gap-3 mb-4">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Your profile needs updates</p>
+                  <p className="text-red-600 mt-0.5">{verification.reason}</p>
+                  <p className="text-red-600 mt-0.5">Update your profile below and submit it again for review.</p>
+                </div>
+              </div>
+            )}
+
+            {missingFields.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl p-4 flex items-start gap-3 mb-4">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <p className="font-semibold">Complete your profile to get verified</p>
+                  <p className="text-slate-500 mt-0.5">Missing: {missingFields.join(", ")}</p>
+                </div>
+              </div>
+            )}
+
+            {verificationError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 flex items-center gap-3 mb-4">
+                <XCircle className="w-4 h-4 shrink-0" />
+                {verificationError}
+              </div>
+            )}
+            {verificationMessage && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4 flex items-center gap-3 mb-4">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                {verificationMessage}
+              </div>
+            )}
+
+            {(!verification || verification.status === "none" || verification.status === "rejected") && (
+              <Button
+                variant={verification?.status === "rejected" ? "secondary" : "primary"}
+                icon={Send}
+                loading={verificationLoading}
+                disabled={missingFields.length > 0}
+                onClick={handleSubmitVerification}
+              >
+                {verification?.status === "rejected" ? "Submit Again for Review" : "Submit Profile for Review"}
+              </Button>
+            )}
+          </div>
+        </Card>
+
         <Card padding={false} hover={false}>
           <div className="p-6 sm:p-8">
             <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">

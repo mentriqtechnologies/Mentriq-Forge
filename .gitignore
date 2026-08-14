@@ -12,3 +12,6 @@ Thumbs.db
 .vscode/
 .idea/
 .vite/
+*firebase-adminsdk*.json
+serviceAccount*.json
+credential*.json

@@ -50,6 +50,8 @@ export const StatusBadge = ({ status }) => {
     active: "green",
     inactive: "slate",
     pending: "amber",
+    none: "slate",
+    approved: "green",
     beginner: "green",
     intermediate: "orange",
     advanced: "red",

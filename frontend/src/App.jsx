@@ -32,12 +32,18 @@ import EvaluateSubmission from "./pages/admin/EvaluateSubmission";
 import ManageUsers from "./pages/admin/ManageUsers";
 import SubmissionsManager from "./pages/admin/SubmissionsManager";
 import DeletedReports from "./pages/admin/DeletedReports";
+import CandidateVerification from "./pages/admin/CandidateVerification";
+import ApplicationsManager from "./pages/admin/ApplicationsManager";
+import HiredCandidates from "./pages/admin/HiredCandidates";
 import EditProject from "./pages/company/EditProject";
 
 const PublicLayout = ({ children }) => (
   <>
+    <a href="#main-content" className="skip-link" aria-label="Skip to main content">
+      Skip to main content
+    </a>
     <Navbar />
-    <main>{children}</main>
+    <main id="main-content" tabIndex={-1} className="outline-none">{children}</main>
   </>
 );
 
@@ -167,10 +173,34 @@ function App() {
           }
         />
         <Route
+          path="/admin/verifications"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+              <AuthLayout><CandidateVerification /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/deleted-reports"
           element={
             <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
               <AuthLayout><DeletedReports /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/applications"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+              <AuthLayout><ApplicationsManager /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/hired-candidates"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+              <AuthLayout><HiredCandidates /></AuthLayout>
             </ProtectedRoute>
           }
         />

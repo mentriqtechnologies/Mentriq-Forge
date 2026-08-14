@@ -75,10 +75,11 @@ const ResetPassword = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
+              role="alert"
               className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6 flex items-center gap-3"
             >
               <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                <Lock className="w-4 h-4 text-red-600" />
+                <Lock className="w-4 h-4 text-red-600" aria-hidden="true" />
               </div>
               {error}
             </motion.div>
@@ -88,10 +89,11 @@ const ResetPassword = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
+              role="status"
               className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-6 text-center"
             >
               <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+                <CheckCircle className="w-6 h-6 text-emerald-600" aria-hidden="true" />
               </div>
               <p className="font-semibold mb-1">Password reset successful!</p>
               <p className="text-emerald-600">Redirecting to login...</p>
@@ -103,6 +105,7 @@ const ResetPassword = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter new password"
                 icon={Lock}
+                autoComplete="new-password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -112,6 +115,7 @@ const ResetPassword = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Confirm new password"
                 icon={Lock}
+                autoComplete="new-password"
                 required
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}

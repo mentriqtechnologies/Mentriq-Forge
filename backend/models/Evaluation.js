@@ -7,7 +7,7 @@ const evaluationSchema = new mongoose.Schema(
     evaluator: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
     // Scoring rubric (0-10 each)
-    scores: {
+    scores: {  
       codeQuality: { type: Number, min: 0, max: 10, default: 0 },
       problemSolving: { type: Number, min: 0, max: 10, default: 0 },
       standardsAdherence: { type: Number, min: 0, max: 10, default: 0 },
@@ -31,5 +31,8 @@ evaluationSchema.pre("save", function (next) {
   this.overallScore = Number((values.reduce((a, b) => a + b, 0) / values.length).toFixed(2));
   next();
 });
+
+evaluationSchema.index({ submission: 1 }, { unique: true });
+evaluationSchema.index({ application: 1 });
 
 module.exports = mongoose.model("Evaluation", evaluationSchema);

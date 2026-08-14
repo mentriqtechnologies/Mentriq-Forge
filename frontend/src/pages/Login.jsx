@@ -73,10 +73,11 @@ const Login = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
+              role="alert"
               className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6 flex items-center gap-3"
             >
               <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                <Lock className="w-4 h-4 text-red-600" />
+                <Lock className="w-4 h-4 text-red-600" aria-hidden="true" />
               </div>
               {error}
             </motion.div>
@@ -88,6 +89,7 @@ const Login = () => {
               type="email"
               placeholder="you@company.com"
               icon={Mail}
+              autoComplete="email"
               required
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -98,6 +100,7 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 icon={Lock}
+                autoComplete="current-password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -114,6 +117,8 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-pressed={showPassword}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     className="text-xs text-forge-primary hover:text-forge-primary-dark font-medium"
                   >
                     {showPassword ? "Hide" : "Show"} password
@@ -144,10 +149,23 @@ const Login = () => {
           </motion.div>
 
           <motion.p variants={itemVariants} className="text-center text-xs text-slate-500 -mt-4 mb-4">
-            To continue with GitHub, the email account used during sign-in must match your GitHub account.
+            Use your Google account to get into MentriQ Forge in one tap.
           </motion.p>
 
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="space-y-3">
+            <a
+              href={`${apiBaseUrl.replace(/\/$/, "")}/auth/google`}
+              aria-label="Continue with Google"
+              className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" fill="#34A853" />
+                <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z" fill="#EA4335" />
+              </svg>
+              Continue with Google
+            </a>
             <a
               href={githubAuthUrl}
               className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"

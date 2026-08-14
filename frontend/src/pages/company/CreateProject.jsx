@@ -3,12 +3,22 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import api from "../../api/axios";
 import { Plus, Send, Briefcase, Clock, Users, BarChart3, BookOpen, Tag } from "lucide-react";
-import { PageHeader, Card, Input, Select, Button } from "../../components/ui";
+import { PageHeader, Card, Input, Select, Textarea, Button } from "../../components/ui";
 
 const domains = [
-  "Technology", "Design", "Marketing", "Sales", "Operations",
-  "Finance", "HR", "Customer Support", "Education", "Healthcare",
-  "Retail", "Logistics", "Media", "Research", "Other",
+  "Full Stack",
+  "Frontend",
+  "Backend",
+  "UI/UX",
+  "Data Science",
+  "DevOps",
+  "Blockchain/Web3",
+  "Game Development",
+  "Networking",
+  "Business Analytics",
+  "Cybersecurity",
+  "AI/ML",
+  "Other",
 ];
 
 const CreateProject = () => {
@@ -38,9 +48,30 @@ const CreateProject = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const errs = {};
+    if (!form.title.trim()) errs.title = "Title is required";
+    if (!form.description.trim()) errs.description = "A brief description is required";
+    if (!form.skillsRequired.trim()) errs.skillsRequired = "At least one skill is required";
+    if (!Number(form.durationDays) || Number(form.durationDays) < 1) errs.durationDays = "Duration must be at least 1 day";
+    if (!Number(form.hiringGoal) || Number(form.hiringGoal) < 1) errs.hiringGoal = "Openings must be at least 1";
+    if (form.salaryMin && form.salaryMax && Number(form.salaryMax) < Number(form.salaryMin)) {
+      errs.salaryMin = "Max salary must be greater than or equal to min";
+    }
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      setError("");
+      return;
+    }
+    setErrors({});
     setError("");
     setLoading(true);
     try {
@@ -104,7 +135,7 @@ const CreateProject = () => {
               <BookOpen className="w-4 h-4" />
               {isDirectHireMode ? "Job Details" : "Project Based Job Details"}
             </h3>
-            <Input label={isDirectHireMode ? "Job Title" : "Project Based Job Title"} placeholder={isDirectHireMode ? "e.g. Sales Executive or Content Writer" : "e.g. Build a Customer Support Workflow"} required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Input label={isDirectHireMode ? "Job Title" : "Project Based Job Title"} name="title" placeholder={isDirectHireMode ? "e.g. Sales Executive or Content Writer" : "e.g. Build a Customer Support Workflow"} required error={errors.title} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <div className="grid md:grid-cols-2 gap-4">
               <Select
                 label="Experience Required"
@@ -132,22 +163,24 @@ const CreateProject = () => {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">{isDirectHireMode ? "Job Brief" : "Project Based Job Brief"}</label>
-              <textarea
-                required rows={4}
+              <Textarea
+                name="description"
+                label={isDirectHireMode ? "Job Brief" : "Project Based Job Brief"}
+                required
+                rows={4}
+                error={errors.description}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-forge-primary focus:ring-2 focus:ring-forge-primary/20"
                 placeholder={isDirectHireMode ? "Describe the role, responsibilities, and what you are looking for..." : "Describe the project based job, goals, and expectations..."}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Job Description</label>
-              <textarea
+              <Textarea
+                name="jobDescription"
+                label="Job Description"
                 rows={4}
                 value={form.jobDescription}
                 onChange={(e) => setForm({ ...form, jobDescription: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-forge-primary focus:ring-2 focus:ring-forge-primary/20"
                 placeholder={isDirectHireMode ? "Outline the day-to-day responsibilities and expectations..." : "Outline role responsibilities and what the candidate will do..."}
               />
             </div>
@@ -162,7 +195,7 @@ const CreateProject = () => {
             )}
             {isDirectHireMode && (
               <div className="grid md:grid-cols-2 gap-4">
-                <Input label="Salary From" type="number" placeholder="500000" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} />
+                <Input label="Salary From" type="number" placeholder="500000" error={errors.salaryMin} value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} />
                 <Input label="Salary To" type="number" placeholder="800000" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: e.target.value })} />
               </div>
             )}
@@ -181,7 +214,7 @@ const CreateProject = () => {
                 { value: "advanced", label: "Advanced" },
               ]} value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} />
             </div>
-            <Input label="Skills Required (comma separated)" placeholder={isDirectHireMode ? "Communication, Teamwork, Problem solving" : "React, Node.js, MongoDB"} required value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} />
+            <Input label="Skills Required (comma separated)" name="skillsRequired" placeholder={isDirectHireMode ? "Communication, Teamwork, Problem solving" : "React, Node.js, MongoDB"} required error={errors.skillsRequired} value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} />
           </div>
 
           {!isDirectHireMode && (
@@ -191,9 +224,9 @@ const CreateProject = () => {
                 Scope & Deliverables
               </h3>
               <Input label="Deliverables (comma separated)" placeholder="GitHub repo, Live demo, README" value={form.deliverables} onChange={(e) => setForm({ ...form, deliverables: e.target.value })} />
-              <div className="grid grid-cols-3 gap-4">
-                <Input label="Duration (days)" type="number" min={1} icon={Clock} value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: e.target.value })} />
-                <Input label="Openings" type="number" min={1} icon={Users} value={form.hiringGoal} onChange={(e) => setForm({ ...form, hiringGoal: e.target.value })} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input label="Duration (days)" type="number" min={1} icon={Clock} error={errors.durationDays} value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: e.target.value })} />
+                <Input label="Openings" type="number" min={1} icon={Users} error={errors.hiringGoal} value={form.hiringGoal} onChange={(e) => setForm({ ...form, hiringGoal: e.target.value })} />
                 <Select label="Project Based Job Type" options={[
                   { value: "simulated", label: "Simulated" },
                   { value: "live", label: "Live" },

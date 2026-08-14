@@ -50,12 +50,32 @@ const userSchema = new mongoose.Schema(
     githubCompany: { type: String },
     githubLocation: { type: String },
 
+    // Google OAuth (optional — only populated when user signs in with Gmail)
+    googleId: { type: String, unique: true, sparse: true },
+    googleEmail: { type: String },
+    googleName: { type: String },
+    googlePicture: { type: String },
+    googleConnectedAt: { type: Date },
+
     // Common
     phone: { type: String },
     bio: { type: String },
     avatarUrl: { type: String },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+
+    // Candidate verification (MentriQ team review)
+    // none → candidate hasn't submitted for review; pending → under review;
+    // approved → visible to companies; rejected → reason provided, can resubmit
+    verificationStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
+    verificationReason: { type: String, default: "" },
+    verificationSubmittedAt: { type: Date },
+    verificationReviewedAt: { type: Date },
+    verificationReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     // Password reset
     resetPasswordToken: { type: String },
@@ -94,5 +114,8 @@ userSchema.methods.toSafeObject = function () {
   delete obj.githubAccessToken;
   return obj;
 };
+
+userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ verificationStatus: 1, verificationSubmittedAt: 1 });
 
 module.exports = mongoose.model("User", userSchema);

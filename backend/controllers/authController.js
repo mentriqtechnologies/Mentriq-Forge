@@ -258,7 +258,6 @@ if (!tokenData.access_token) {
       githubLocation: githubUser.location,
       avatarUrl: githubUser.avatar_url,
       role: "candidate",
-      isVerified: true,
     });
   }
 
@@ -294,6 +293,120 @@ const githubUnlink = asyncHandler(async (req, res) => {
   user.githubLocation = undefined;
   await user.save();
   res.json({ success: true, user: user.toSafeObject() });
+});
+
+// @desc Initiate Google OAuth (signup / login)
+// @route GET /api/auth/google
+// role is a self-signup hint only (candidate|company); signed so it cannot be tampered with.
+const googleAuth = (req, res) => {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+  if (!googleClientId || !googleClientSecret) {
+    res.status(500).json({
+      success: false,
+      message: "Google OAuth is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to backend/.env before enabling Continue with Google.",
+    });
+    return;
+  }
+
+  const redirectUri = `${process.env.SERVER_URL}/api/auth/google/callback`;
+  const role = ["candidate", "company"].includes(req.query.role) ? req.query.role : "candidate";
+  const state = jwt.sign({ role }, process.env.JWT_SECRET, { expiresIn: "5m" });
+  const url =
+    `https://accounts.google.com/o/oauth2/v2/auth` +
+    `?client_id=${googleClientId}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code` +
+    `&scope=${encodeURIComponent("openid email profile")}` +
+    `&state=${encodeURIComponent(state)}`;
+  res.redirect(url);
+};
+
+// @desc Google OAuth callback (signup/login)
+// @route GET /api/auth/google/callback
+const googleCallback = asyncHandler(async (req, res) => {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+  if (!googleClientId || !googleClientSecret) {
+    res.status(500);
+    throw new Error("Google OAuth is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to backend/.env before enabling Continue with Google.");
+  }
+
+  const { code, state } = req.query;
+  if (!code) {
+    res.status(400);
+    throw new Error("Missing authorization code");
+  }
+
+  let requestedRole = "candidate";
+  if (state) {
+    try {
+      const decoded = jwt.verify(state, process.env.JWT_SECRET);
+      if (["candidate", "company"].includes(decoded.role)) requestedRole = decoded.role;
+    } catch {
+      requestedRole = "candidate";
+    }
+  }
+
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: new URLSearchParams({
+      client_id: googleClientId,
+      client_secret: googleClientSecret,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: `${process.env.SERVER_URL}/api/auth/google/callback`,
+    }).toString(),
+  });
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) {
+    console.error("Google token exchange failed:", tokenData.error || tokenData.error_description || "unknown error");
+    res.status(401);
+    throw new Error("Failed to authenticate with Google");
+  }
+
+  const userRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+  const googleUser = await userRes.json();
+  if (!googleUser || !googleUser.sub) {
+    res.status(401);
+    throw new Error("Failed to fetch Google profile");
+  }
+
+  // Existing account: match by Google ID, then by verified email
+  let user = await User.findOne({ googleId: String(googleUser.sub) });
+  if (!user && (googleUser.email || googleUser.email_verified)) {
+    user = await User.findOne(buildEmailQuery(googleUser.email));
+  }
+
+  if (user) {
+    user.googleId = String(googleUser.sub);
+    user.googleEmail = googleUser.email;
+    user.googleName = googleUser.name;
+    user.googlePicture = googleUser.picture;
+    user.googleConnectedAt = user.googleConnectedAt || new Date();
+    await user.save();
+  } else {
+    user = await User.create({
+      name: googleUser.name || googleUser.email?.split("@")[0] || "Google User",
+      email: googleUser.email || `${googleUser.sub}@google.local`,
+      password: crypto.randomBytes(24).toString("hex"),
+      role: requestedRole,
+      googleId: String(googleUser.sub),
+      googleEmail: googleUser.email,
+      googleName: googleUser.name,
+      googlePicture: googleUser.picture,
+      googleConnectedAt: new Date(),
+      isVerified: false,
+    });
+  }
+
+  const token = generateToken(user._id);
+  res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user.toSafeObject()))}`);
 });
 
 // @desc Forgot password — send reset token email
@@ -379,4 +492,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, githubAuth, githubCallback, githubLink, githubUnlink, forgotPassword, resetPassword };
+module.exports = { registerUser, loginUser, getMe, updateMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, forgotPassword, resetPassword };

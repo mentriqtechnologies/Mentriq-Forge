@@ -16,6 +16,16 @@ const statusOptions = [
   { value: "hired", label: "Hired" },
 ];
 
+// For project-based hiring the MentriQ team forwards profiles to the company at
+// the shortlist stage. Companies only manage the forward-stage pipeline there;
+// on direct jobs they manage the entire pipeline from application onwards.
+const companyStageOptions = [
+  { value: "shortlisted", label: "Shortlisted" },
+  { value: "rejected", label: "Rejected" },
+  { value: "interview_scheduled", label: "Interview Scheduled" },
+  { value: "hired", label: "Hired" },
+];
+
 const ProjectApplicants = () => {
   const { projectId } = useParams();
   const [applications, setApplications] = useState([]);
@@ -102,7 +112,7 @@ const ProjectApplicants = () => {
                       onChange={(e) => updateStatus(app._id, e.target.value)}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-forge-primary focus:ring-2 focus:ring-forge-primary/20"
                     >
-                      {statusOptions.map((s) => (
+                      {(app.applicationType === "direct_hire" ? statusOptions : companyStageOptions).map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>

@@ -201,6 +201,26 @@ const quickActions = [
     hoverBorder: "hover:border-red-500/40",
     textColor: "text-red-600",
   },
+  {
+    to: "/admin/applications",
+    title: "Applications Manager",
+    desc: "Review & shortlist job and project applicants",
+    icon: Briefcase,
+    gradient: "from-blue-500/10 to-blue-500/5",
+    border: "border-blue-500/20",
+    hoverBorder: "hover:border-blue-500/40",
+    textColor: "text-blue-600",
+  },
+  {
+    to: "/admin/hired-candidates",
+    title: "Hired Candidates",
+    desc: "See who was hired by which company",
+    icon: CheckCircle,
+    gradient: "from-green-500/10 to-green-500/5",
+    border: "border-green-500/20",
+    hoverBorder: "hover:border-green-500/40",
+    textColor: "text-green-600",
+  },
 ];
 
 const workflowSteps = [

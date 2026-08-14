@@ -5,7 +5,7 @@ import api from "../../api/axios";
 import {
   Briefcase, FileText, CheckCircle, Clock, Award,
   ChevronDown, ChevronRight, RefreshCw, GitBranch, ExternalLink,
-  BarChart3, Code2, Activity, MessageSquareQuote,
+  BarChart3, Code2, Activity, MessageSquareQuote, BadgeCheck, XCircle,
 } from "lucide-react";
 import { PageHeader, StatCard, Card, Badge, StatusBadge, Button, EmptyState } from "../../components/ui";
 import Avatar from "../../components/ui/Avatar";
@@ -151,11 +151,13 @@ const CandidateDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [expanded, setExpanded] = useState({});
+  const [verification, setVerification] = useState(null);
 
   useEffect(() => {
     api.get("/dashboard/candidate").then((res) => setStats(res.data.stats));
     api.get("/applications/my").then((res) => setApplications(res.data.applications));
     api.get("/submissions/my").then((res) => setSubmissions(res.data.submissions));
+    api.get("/verification/me").then((res) => setVerification(res.data.verification)).catch(() => {});
   }, []);
 
   const getSubmissionForApp = (appId) =>
@@ -187,6 +189,45 @@ const CandidateDashboard = () => {
           </>
         }
       />
+
+      {verification?.status === "none" && (
+        <motion.div variants={itemVariants} className="mb-8">
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl p-4 flex items-start gap-3">
+            <BadgeCheck className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold">Get verified to be visible to companies</p>
+              <p className="text-amber-600 mt-0.5">Complete your profile and submit it for review by the MentriQ team.</p>
+            </div>
+            <Link to="/candidate/settings">
+              <Button size="sm" variant="outline">Complete Profile</Button>
+            </Link>
+          </div>
+        </motion.div>
+      )}
+
+      {verification?.status === "rejected" && (
+        <motion.div variants={itemVariants} className="mb-8">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 flex items-start gap-3">
+            <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold">Your profile needs updates</p>
+              <p className="text-red-600 mt-0.5">{verification.reason}</p>
+            </div>
+            <Link to="/candidate/settings">
+              <Button size="sm" variant="outline">Update Profile</Button>
+            </Link>
+          </div>
+        </motion.div>
+      )}
+
+      {verification?.status === "pending" && (
+        <motion.div variants={itemVariants} className="mb-8">
+          <div className="bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-xl p-4 flex items-center gap-3">
+            <Clock className="w-5 h-5 shrink-0" />
+            <p>Your profile is <span className="font-semibold">under review</span> by the MentriQ team. Once approved, you will be visible to companies.</p>
+          </div>
+        </motion.div>
+      )}
 
       <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <StatCard label="Applications" value={stats?.totalApplications} icon={FileText} color="forge" />
@@ -248,13 +289,20 @@ const CandidateDashboard = () => {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <StatusBadge status={app.status} />
-                      {["applied", "in_progress"].includes(app.status) && (
+                      {["applied", "in_progress", "under_review", "rejected"].includes(app.status) && (
                         <Link
                           to={`/candidate/applications/${app._id}/submit`}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Button size="sm" icon={ExternalLink} iconPosition="right">
-                            Submit
+                            {["under_review", "rejected"].includes(app.status) ? "Resubmit" : "Submit"}
+                          </Button>
+                        </Link>
+                      )}
+                      {["under_review", "rejected", "shortlisted"].includes(app.status) && (
+                        <Link to="/candidate/feedback" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" icon={MessageSquareQuote}>
+                            Feedback
                           </Button>
                         </Link>
                       )}

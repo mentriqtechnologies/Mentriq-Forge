@@ -48,6 +48,7 @@ app.use("/api/evaluations", require("./routes/evaluationRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/github", require("./routes/githubRoutes"));
+app.use("/api/verification", require("./routes/verificationRoutes"));
 
 // Admin analytics available to evaluators too
 const { protect, authorize } = require("./middleware/auth");

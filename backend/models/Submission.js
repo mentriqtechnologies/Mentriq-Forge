@@ -33,4 +33,9 @@ const submissionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+submissionSchema.index({ status: 1, submittedAt: 1 });
+submissionSchema.index({ candidate: 1, createdAt: -1 });
+submissionSchema.index({ project: 1, status: 1 });
+submissionSchema.index({ application: 1 });
+
 module.exports = mongoose.model("Submission", submissionSchema);

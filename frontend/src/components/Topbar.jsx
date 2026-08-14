@@ -6,7 +6,7 @@ import Avatar from "./ui/Avatar";
 import Dropdown, { DropdownItem, DropdownDivider } from "./ui/Dropdown";
 import { Settings, LogOut, UserCircle } from "lucide-react";
 
-const Topbar = ({ onMenuToggle }) => {
+const Topbar = ({ onMenuToggle, mobileOpen }) => {
   const { user, logout } = useAuth();
 
   return (
@@ -14,9 +14,12 @@ const Topbar = ({ onMenuToggle }) => {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
+          aria-label="Open navigation menu"
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-sidebar"
           className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5" aria-hidden="true" />
         </button>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -26,14 +29,19 @@ const Topbar = ({ onMenuToggle }) => {
       </div>
 
       <div className="flex items-center gap-3">
-        <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-forge-primary rounded-full" />
+        <button
+          type="button"
+          aria-label="Notifications"
+          className="relative p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        >
+          <Bell className="w-5 h-5" aria-hidden="true" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-forge-primary rounded-full" aria-hidden="true" />
         </button>
 
         <Dropdown
+          label="Account menu"
           trigger={
-            <button className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+            <button type="button" className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
               <Avatar name={user?.name} size="sm" />
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium text-slate-900 leading-tight">{user?.name}</p>

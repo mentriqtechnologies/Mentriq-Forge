@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
 const Project = require("../models/Project");
 const Application = require("../models/Application");
+const { getPagination } = require("../utils/pagination");
 
 // @desc Admin creates an evaluator or admin account
 // @route POST /api/admin/users
@@ -26,7 +27,8 @@ const createStaffUser = asyncHandler(async (req, res) => {
 // @desc List all users (admin only)
 // @route GET /api/admin/users
 const getAllUsers = asyncHandler(async (req, res) => {
-  const { role, search, page = 1, limit = 20 } = req.query;
+  const { role, search } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
 
   const query = {};
   if (role) query.role = role;
@@ -38,9 +40,13 @@ const getAllUsers = asyncHandler(async (req, res) => {
     ];
   }
 
-  const skip = (Number(page) - 1) * Number(limit);
   const [users, total] = await Promise.all([
-    User.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+User.find(query)
+      .select("-password -resetPasswordToken -resetPasswordExpire")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     User.countDocuments(query),
   ]);
 
@@ -48,8 +54,8 @@ const getAllUsers = asyncHandler(async (req, res) => {
     success: true,
     users,
     total,
-    page: Number(page),
-    pages: Math.ceil(total / Number(limit)),
+    page,
+    pages: Math.ceil(total / limit),
   });
 });
 
@@ -95,7 +101,8 @@ const deleteUser = asyncHandler(async (req, res) => {
 // @desc Admin get all projects (including deleted, with search/filter)
 // @route GET /api/admin/projects
 const getAdminProjects = asyncHandler(async (req, res) => {
-  const { search, status, type, page = 1, limit = 20 } = req.query;
+  const { search, status, type } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
   const query = {};
   if (status && status !== "all") query.status = status;
   if (type) query.applicationMode = type;
@@ -105,17 +112,17 @@ const getAdminProjects = asyncHandler(async (req, res) => {
       { jobRole: { $regex: search, $options: "i" } },
     ];
   }
-  const skip = (Number(page) - 1) * Number(limit);
   const [projects, total] = await Promise.all([
     Project.find(query)
       .populate("company", "name companyName email industry")
       .populate("deletedBy", "name companyName")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit)),
+      .limit(limit)
+      .lean(),
     Project.countDocuments(query),
   ]);
-  res.json({ success: true, projects, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  res.json({ success: true, projects, total, page, pages: Math.ceil(total / limit) });
 });
 
 // @desc Admin soft delete any project
@@ -137,7 +144,8 @@ const adminDeleteProject = asyncHandler(async (req, res) => {
 // @desc Get all deleted items (projects/jobs) for Deleted Reports
 // @route GET /api/admin/deleted-items
 const getDeletedItems = asyncHandler(async (req, res) => {
-  const { search, type, page = 1, limit = 20 } = req.query;
+  const { search, type } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
   const query = { isDeleted: true };
   if (type && type !== "all") {
     if (type === "job") query.applicationMode = "direct_hire";
@@ -149,14 +157,14 @@ const getDeletedItems = asyncHandler(async (req, res) => {
       { jobRole: { $regex: search, $options: "i" } },
     ];
   }
-  const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
     Project.find(query)
       .populate("company", "name companyName email")
       .populate("deletedBy", "name companyName role")
       .sort({ deletedAt: -1 })
       .skip(skip)
-      .limit(Number(limit)),
+      .limit(limit)
+      .lean(),
     Project.countDocuments(query),
   ]);
   const data = items.map((item) => ({
@@ -171,7 +179,7 @@ const getDeletedItems = asyncHandler(async (req, res) => {
     deletedBy: item.deletedBy,
     deletedByName: item.deletedBy?.companyName || item.deletedBy?.name || "Unknown",
   }));
-  res.json({ success: true, items: data, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  res.json({ success: true, items: data, total, page, pages: Math.ceil(total / limit) });
 });
 
 // @desc Restore a deleted item
@@ -248,14 +256,14 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
 // @desc Get hired candidates with details
 // @route GET /api/admin/hired-candidates
 const getHiredCandidates = asyncHandler(async (req, res) => {
-  const { search, page = 1, limit = 20 } = req.query;
+  const { search } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
   const query = { status: "hired" };
   if (search) {
     query.$or = [
       { applicantName: { $regex: search, $options: "i" } },
     ];
   }
-  const skip = (Number(page) - 1) * Number(limit);
   const [applications, total] = await Promise.all([
     Application.find(query)
       .populate("candidate", "name email")
@@ -266,7 +274,8 @@ const getHiredCandidates = asyncHandler(async (req, res) => {
       })
       .sort({ updatedAt: -1 })
       .skip(skip)
-      .limit(Number(limit)),
+      .limit(limit)
+      .lean(),
     Application.countDocuments(query),
   ]);
   const data = applications.map((app) => ({
@@ -278,7 +287,7 @@ const getHiredCandidates = asyncHandler(async (req, res) => {
     companyName: app.project?.company?.companyName || app.project?.company?.name,
     hiredAt: app.updatedAt,
   }));
-  res.json({ success: true, items: data, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  res.json({ success: true, items: data, total, page, pages: Math.ceil(total / limit) });
 });
 
 module.exports = {

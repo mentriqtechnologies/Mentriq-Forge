@@ -35,18 +35,48 @@ const createEvaluation = asyncHandler(async (req, res) => {
     throw new Error("Submission not found");
   }
 
+  if (!feedback || typeof feedback.trim !== "function" || !feedback.trim()) {
+    res.status(400);
+    throw new Error("Detailed feedback is required");
+  }
+
+  if (!["shortlist", "reject", "needs_upskilling"].includes(recommendation)) {
+    res.status(400);
+    throw new Error("Recommendation must be 'shortlist', 'reject' or 'needs_upskilling'");
+  }
+
   const existing = await Evaluation.findOne({ submission: submissionId });
   if (existing) {
     res.status(400);
     throw new Error("This submission has already been evaluated");
   }
 
+  // Validate and normalize rubric scores (0-10 each)
+  const scoreKeys = [
+    "codeQuality",
+    "problemSolving",
+    "standardsAdherence",
+    "completeness",
+    "communication",
+  ];
+  const normalizedScores = {};
+  for (const key of scoreKeys) {
+    if (scores && scores[key] !== undefined) {
+      const value = Number(scores[key]);
+      if (Number.isNaN(value) || value < 0 || value > 10) {
+        res.status(400);
+        throw new Error(`Score for ${key} must be a number between 0 and 10`);
+      }
+      normalizedScores[key] = value;
+    }
+  }
+
   const evaluation = await Evaluation.create({
     submission: submissionId,
     application: submission.application,
     evaluator: req.user._id,
-    scores,
-    feedback,
+    scores: normalizedScores,
+    feedback: feedback.trim(),
     recommendation,
   });
 
@@ -80,13 +110,22 @@ const getEvaluationBySubmission = asyncHandler(async (req, res) => {
 // @desc Get top-scored / shortlisted candidates for a project (company view)
 // @route GET /api/evaluations/project/:projectId/shortlist
 const getShortlistForProject = asyncHandler(async (req, res) => {
+  // Companies can only view approved (verified) candidates. Admins/evaluators see all.
+  const candidatePopulate =
+    req.user.role === "company"
+      ? { path: "candidate", match: { isVerified: true }, select: "name email skills experienceLevel resumeUrl" }
+      : { path: "candidate", select: "name email skills experienceLevel resumeUrl" };
+
   const applications = await Application.find({
     project: req.params.projectId,
     status: { $in: ["shortlisted", "interview_scheduled", "hired"] },
-  }).populate("candidate", "name email skills experienceLevel resumeUrl");
+  }).populate(candidatePopulate);
+
+  const visible =
+    req.user.role === "company" ? applications.filter((app) => app.candidate) : applications;
 
   const results = await Promise.all(
-    applications.map(async (app) => {
+    visible.map(async (app) => {
       const submission = await Submission.findOne({ application: app._id });
       const evaluation = submission
         ? await Evaluation.findOne({ submission: submission._id })

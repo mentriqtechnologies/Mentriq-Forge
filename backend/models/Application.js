@@ -34,5 +34,8 @@ const applicationSchema = new mongoose.Schema(
 );
 
 applicationSchema.index({ project: 1, candidate: 1 }, { unique: true });
+applicationSchema.index({ candidate: 1, createdAt: -1 });
+applicationSchema.index({ project: 1, status: 1 });
+applicationSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Application", applicationSchema);

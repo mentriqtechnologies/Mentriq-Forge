@@ -4,12 +4,19 @@ const {
   applyToProject,
   getMyApplications,
   getApplicationsForProject,
+  getAllApplications,
   updateApplicationStatus,
 } = require("../controllers/applicationController");
 const { protect, authorize } = require("../middleware/auth");
 
 router.post("/", protect, authorize("candidate"), applyToProject);
 router.get("/my", protect, authorize("candidate"), getMyApplications);
+router.get(
+  "/all",
+  protect,
+  authorize("admin", "evaluator"),
+  getAllApplications
+);
 router.get(
   "/project/:projectId",
   protect,

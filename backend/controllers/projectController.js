@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const Project = require("../models/Project");
 const Application = require("../models/Application");
+const { getPagination } = require("../utils/pagination");
 
 // @desc Create a project (company only)
 // @route POST /api/projects
@@ -34,7 +35,8 @@ const createProject = asyncHandler(async (req, res) => {
 // @desc Get all projects (public listing, with filters)
 // @route GET /api/projects
 const getProjects = asyncHandler(async (req, res) => {
-  const { domain, difficulty, status, search, page = 1, limit = 12 } = req.query;
+  const { domain, difficulty, status, search } = req.query;
+  const { page, limit, skip } = getPagination(req.query, { defaultLimit: 12 });
 
   const query = {};
   if (domain) query.domain = domain;
@@ -51,13 +53,14 @@ const getProjects = asyncHandler(async (req, res) => {
     ];
   }
 
-  const skip = (Number(page) - 1) * Number(limit);
   const [projects, total] = await Promise.all([
-    Project.find(query)
+Project.find(query)
+      .select("title jobRole description applicationMode salary salaryMin salaryMax workLocation durationDays hiringGoal maxCandidates skillsRequired requirements deliverables deadline status company createdAt")
       .populate("company", "name companyName industry")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit)),
+      .limit(limit)
+      .lean(),
     Project.countDocuments(query),
   ]);
 
@@ -65,8 +68,8 @@ const getProjects = asyncHandler(async (req, res) => {
     success: true,
     projects,
     total,
-    page: Number(page),
-    pages: Math.ceil(total / Number(limit)),
+    page,
+    pages: Math.ceil(total / limit),
   });
 });
 
@@ -144,15 +147,18 @@ const deleteProject = asyncHandler(async (req, res) => {
 // @desc Get projects posted by the logged-in company
 // @route GET /api/projects/my/company
 const getMyCompanyProjects = asyncHandler(async (req, res) => {
-  const projects = await Project.find({ company: req.user._id, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
+  const projects = await Project.find({ company: req.user._id, isDeleted: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .lean();
 
-  // attach applicant counts
-  const withCounts = await Promise.all(
-    projects.map(async (p) => {
-      const count = await Application.countDocuments({ project: p._id });
-      return { ...p.toObject(), applicantCount: count };
-    })
-  );
+  // Single aggregate instead of one count query per project (N+1)
+  const counts = await Application.aggregate([
+    { $match: { project: { $in: projects.map((p) => p._id) } } },
+    { $group: { _id: "$project", count: { $sum: 1 } } },
+  ]);
+  const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
+
+  const withCounts = projects.map((p) => ({ ...p, applicantCount: countMap.get(String(p._id)) || 0 }));
 
   res.json({ success: true, projects: withCounts });
 });

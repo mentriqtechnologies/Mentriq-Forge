@@ -29,6 +29,10 @@ const Navbar = () => {
           exit={{ x: -320 }}
           transition={{ type: "spring", damping: 25, stiffness: 250 }}
           className="absolute left-0 top-0 bottom-0 w-11/12 max-w-sm sm:w-80 md:w-96 bg-white border-r border-slate-200 p-0 overflow-y-auto h-full"
+          id="mobile-site-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-4 bg-gradient-to-br from-forge-primary/8 to-forge-secondary/8 rounded-b-2xl">
@@ -40,8 +44,12 @@ const Navbar = () => {
                   <p className="text-xs text-slate-400">Forge</p>
                 </div>
               </div>
-              <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100">
-                <X className="w-5 h-5" />
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close menu"
+                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -113,9 +121,12 @@ const Navbar = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-site-menu"
             className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
           {user ? (
             <Dropdown

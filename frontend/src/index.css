@@ -17,6 +17,15 @@
     @apply font-body text-slate-600 antialiased;
   }
 
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [tabindex] {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forge-primary focus-visible:ring-offset-1;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading text-slate-900;
   }
@@ -29,6 +38,15 @@
 @layer components {
   .app-container {
     @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .soft-badge {
+    @apply inline-flex items-center gap-2 w-fit rounded-full bg-forge-primary/10 border border-forge-primary/20 px-4 py-1.5 text-xs font-bold text-forge-primary;
+  }
+  .dashboard-chip {
+    @apply inline-flex items-center gap-1.5 w-fit rounded-full bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600;
+  }
+  .portal-card {
+    @apply rounded-3xl border border-slate-200 bg-white shadow-elevated;
   }
   .text-gradient {
     @apply bg-gradient-to-r from-forge-primary to-forge-secondary bg-clip-text text-transparent;
@@ -56,5 +74,20 @@
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-forge-primary focus:text-white focus:font-medium;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
