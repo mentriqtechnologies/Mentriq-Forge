@@ -1,10 +1,14 @@
 const asyncHandler = require("express-async-handler");
 const Evaluation = require("../models/Evaluation");
-const Submission = require("../models/Submission");
+const Interview = require("../models/Interview");
 const Application = require("../models/Application");
+const Submission = require("../models/Submission");
+const User = require("../models/User");
+
+// Application statuses the MentriQ team uses to forward a profile to the company
+const FORWARDED_STATUSES = ["shortlisted", "interview_scheduled", "hired"];
 
 // @desc Get all evaluations for the logged-in candidate's own submissions (feedback view)
-// @route GET /api/evaluations/my
 const getMyEvaluations = asyncHandler(async (req, res) => {
   const submissions = await Submission.find({ candidate: req.user._id }).populate(
     "project",
@@ -25,7 +29,6 @@ const getMyEvaluations = asyncHandler(async (req, res) => {
 });
 
 // @desc Evaluator scores a submission
-// @route POST /api/evaluations
 const createEvaluation = asyncHandler(async (req, res) => {
   const { submissionId, scores, feedback, recommendation } = req.body;
 
@@ -83,18 +86,20 @@ const createEvaluation = asyncHandler(async (req, res) => {
   submission.status = "reviewed";
   await submission.save();
 
-  const application = await Application.findById(submission.application);
-  if (application) {
-    application.status = recommendation === "shortlist" ? "shortlisted" : "under_review";
-    if (recommendation === "reject") application.status = "rejected";
-    await application.save();
+  // Also create an linked interview evaluation if an interview exists
+  const interview = await Interview.findOne({ application: submission.application });
+  if (interview) {
+    // Update interview feedback and recommendation
+    interview.feedback = feedback.trim();
+    interview.recommendation = recommendation;
+    interview.status = "completed";
+    await interview.save();
   }
 
   res.status(201).json({ success: true, evaluation });
 });
 
 // @desc Get evaluation for a submission
-// @route GET /api/evaluations/submission/:submissionId
 const getEvaluationBySubmission = asyncHandler(async (req, res) => {
   const evaluation = await Evaluation.findOne({ submission: req.params.submissionId }).populate(
     "evaluator",
@@ -107,44 +112,138 @@ const getEvaluationBySubmission = asyncHandler(async (req, res) => {
   res.json({ success: true, evaluation });
 });
 
-// @desc Get top-scored / shortlisted candidates for a project (company view)
-// @route GET /api/evaluations/project/:projectId/shortlist
-const getShortlistForProject = asyncHandler(async (req, res) => {
-  // Companies can only view approved (verified) candidates. Admins/evaluators see all.
-  const candidatePopulate =
-    req.user.role === "company"
-      ? { path: "candidate", match: { isVerified: true }, select: "name email skills experienceLevel resumeUrl" }
-      : { path: "candidate", select: "name email skills experienceLevel resumeUrl" };
+// @desc Get evaluations for an interview (Part 5 feature)
+// @route GET /api/interviews/:id/evaluations
+const getInterviewEvaluations = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+  if (!interview) {
+    res.status(404);
+    throw new Error("Interview not found");
+  }
 
-  const applications = await Application.find({
-    project: req.params.projectId,
-    status: { $in: ["shortlisted", "interview_scheduled", "hired"] },
-  }).populate(candidatePopulate);
+  // Security check
+  if (interview.interviewOwner === "company" && req.user.role !== "company") {
+    res.status(403);
+    throw new Error("Not authorized to view evaluations");
+  }
+  if (
+    interview.interviewOwner === "evaluator" &&
+    !["evaluator", "admin"].includes(req.user.role)
+  ) {
+    res.status(403);
+    throw new Error("Not authorized to view evaluations");
+  }
 
-  const visible =
-    req.user.role === "company" ? applications.filter((app) => app.candidate) : applications;
+  // Get evaluations associated with this interview's application
+  const evaluations = await Evaluation.find({ application: interview.application });
+  res.json({ success: true, evaluations });
+});
 
-  const results = await Promise.all(
-    visible.map(async (app) => {
-      const submission = await Submission.findOne({ application: app._id });
-      const evaluation = submission
-        ? await Evaluation.findOne({ submission: submission._id })
-        : null;
-      return {
-        application: app,
-        overallScore: evaluation ? evaluation.overallScore : null,
-        recommendation: evaluation ? evaluation.recommendation : null,
-      };
-    })
-  );
+// @desc Create evaluation for an interview (Part 5 feature)
+// Evaluator records feedback and recommendation after interview
+const createInterviewEvaluation = asyncHandler(async (req, res) => {
+  const { interviewId, feedback, recommendation } = req.body;
 
-  results.sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0));
-  res.json({ success: true, shortlist: results });
+  const interview = await Interview.findById(interviewId);
+  if (!interview) {
+    res.status(404);
+    throw new Error("Interview not found");
+  }
+
+  // Security check
+  if (interview.interviewOwner === "company" && req.user.role !== "company") {
+    res.status(403);
+    throw new Error("Not authorized to evaluate this interview");
+  }
+  if (
+    interview.interviewOwner === "evaluator" &&
+    !["evaluator", "admin"].includes(req.user.role)
+  ) {
+    res.status(403);
+    throw new Error("Not authorized to evaluate this interview");
+  }
+
+  if (!feedback || typeof feedback.trim !== "function" || !feedback.trim()) {
+    res.status(400);
+    throw new Error("Detailed feedback is required");
+  }
+
+  // Recommendation options for Part 5
+  const validRecommendations = ["recommended", "not_recommended", "needs_further_review"];
+  if (!validRecommendations.includes(recommendation)) {
+    res.status(400);
+    throw new Error(`Recommendation must be one of: ${validRecommendations.join(", ")}`);
+  }
+
+  // Check if an evaluation already exists for this interview/application
+  const existing = await Evaluation.findOne({ application: interview.application });
+  if (existing) {
+    // Update existing evaluation
+    existing.feedback = feedback.trim();
+    existing.recommendation = recommendation;
+    existing.evaluator = req.user._id;
+    await existing.save();
+    res.json({ success: true, evaluation: existing });
+  } else {
+    // Create new evaluation linked to the application
+    const evaluation = await Evaluation.create({
+      application: interview.application,
+      candidate: interview.candidate,
+      evaluator: req.user._id,
+      feedback: feedback.trim(),
+      recommendation,
+      // Set default scores to 0 or leave undefined for Part 5
+      scores: {},
+      overallScore: 0,
+    });
+
+    // Update interview with feedback and recommendation
+    interview.feedback = feedback.trim();
+    interview.recommendation = recommendation;
+    interview.status = "completed";
+    await interview.save();
+
+    res.status(201).json({ success: true, evaluation });
+  }
+});
+
+// @desc Get interview detail with evaluation
+const getInterviewDetail = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id)
+    .populate("application", "project title applicationType")
+    .populate("candidate", "name email githubUsername linkedinUsername")
+    .populate("createdBy", "name");
+
+  if (!interview) {
+    res.status(404);
+    throw new Error("Interview not found");
+  }
+
+  // Security check
+  if (interview.interviewOwner === "company" && req.user.role !== "company") {
+    res.status(403);
+    throw new Error("Not authorized to view this interview");
+  }
+  if (
+    interview.interviewOwner === "evaluator" &&
+    !["evaluator", "admin"].includes(req.user.role)
+  ) {
+    res.status(403);
+    throw new Error("Not authorized to view this interview");
+  }
+
+  // Get associated evaluation
+  const evaluation = await Evaluation.findOne({ application: interview.application });
+
+  res.json({ success: true, interview, evaluation });
 });
 
 module.exports = {
   createEvaluation,
   getEvaluationBySubmission,
-  getShortlistForProject,
+  getInterviewEvaluations,
+  createInterviewEvaluation,
+  getInterviewDetail,
   getMyEvaluations,
+  getShortlistForProject: (req, res) => res.json({ success: true, message: "Not implemented yet" }),
 };

@@ -92,7 +92,7 @@ const GithubCandidateRow = ({ submission }) => {
             })}
             <div className="bg-white rounded-lg p-2.5 border border-slate-100">
               <Code2 className="w-3.5 h-3.5 text-slate-400 mx-auto mb-0.5" />
-              <div className="flex flex-wrap gap-0.5 justify-center">
+              <div className="flex flex-wrap justify-center">
                 {a.languages?.length > 0
                   ? a.languages.slice(0, 3).map((l) => (
                       <span key={l.name} className="text-[10px] px-1 py-0.5 bg-slate-100 rounded text-slate-500">
@@ -138,11 +138,13 @@ const CompanyDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [submissionsOpen, setSubmissionsOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState(null);
+  const [shortlistedApplications, setShortlistedApplications] = useState([]);
 
   useEffect(() => {
     api.get("/dashboard/company").then((res) => setStats(res.data.stats));
     api.get("/projects/my/company").then((res) => setProjects(res.data.projects));
     api.get("/dashboard/company/submissions").then((res) => setSubmissions(res.data.submissions || []));
+    api.get("/company/shortlisted").then((res) => setShortlistedApplications(res.data.applications || []));
   }, []);
 
   const hasSubmissions = submissions.length > 0;
@@ -180,12 +182,12 @@ const CompanyDashboard = () => {
           <div className="flex flex-wrap items-center gap-2">
             <Link to="/company/projects/new?mode=direct">
               <Button variant="outline" icon={Plus} size="sm">
-                Post a Job
+                Post a Normal Job
               </Button>
             </Link>
             <Link to="/company/projects/new">
               <Button icon={Plus} size="sm">
-                Post a Project Based Job
+                Post a Project-Based Job
               </Button>
             </Link>
           </div>
@@ -195,10 +197,59 @@ const CompanyDashboard = () => {
       <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <StatCard label="Total Projects" value={stats?.totalProjects} icon={FolderKanban} color="forge" />
         <StatCard label="Open Projects" value={stats?.openProjects} icon={Briefcase} color="green" />
+        <StatCard label="Normal Jobs" value={stats?.totalProjects - (stats?.projectBasedCount || 0)} icon={Briefcase} color="blue" />
+        <StatCard label="Project-Based Jobs" value={stats?.projectBasedCount || 0} icon={FolderKanban} color="purple" />
         <StatCard label="Applications" value={stats?.totalApplications} icon={Users} color="orange" />
         <StatCard label="Shortlisted" value={stats?.shortlisted} icon={Award} color="purple" />
         <StatCard label="Hired" value={stats?.hired} icon={TrendingUp} color="forge" />
       </motion.div>
+
+      {shortlistedApplications.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold font-heading text-slate-900">Shortlisted Candidates</h2>
+            <span className="text-sm text-slate-400">{shortlistedApplications.length} candidate{shortlistedApplications.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="space-y-3">
+            {shortlistedApplications.map((app, i) => (
+              <motion.div
+                key={app._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+                <Card padding={false} hover={false}>
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Badge color={app.applicationType === "direct_hire" ? "blue" : "purple"} size="sm">
+                        {app.applicationType === "direct_hire" ? "Job" : "Project"}
+                      </Badge>
+                      <span className="text-sm font-medium text-slate-900 truncate">
+                        {app.project?.title}
+                      </span>
+                      <StatusBadge status={app.status} />
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {app.candidate?.name || "Candidate"}
+                    </div>
+                  </div>
+                  <div className="p-3 border-t border-slate-200 mt-2">
+                    <Button
+                      size="sm"
+                      icon={ExternalLink}
+                      onClick={() => navigate(`/company/candidate-review/${app._id}`)}
+                      className="w-auto px-3 py-1.5 text-sm text-forge-primary hover:text-forge-primary/90 transition-colors"
+                    >
+                      Review
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <motion.div variants={itemVariants}>
         <div className="flex items-center justify-between mb-4">
@@ -266,6 +317,12 @@ const CompanyDashboard = () => {
                   <StatusBadge status={p.status} />
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>
+                {/* Show job type badge */}
+                {p.applicationMode && (
+                  <div className="text-xs text-slate-500 mt-1 capitalize">
+                    {p.applicationMode === "direct_hire" ? "Normal Job" : "Project-Based Job"}
+                  </div>
+                )}
               </Card>
             </motion.div>
           ))}

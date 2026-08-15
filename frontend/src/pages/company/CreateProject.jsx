@@ -45,6 +45,8 @@ const CreateProject = () => {
     isDirectHire: isDirectHireMode,
     experienceRequired: "fresher",
     customExperience: "",
+    // New field to explicitly track job type
+    jobType: isDirectHireMode ? "direct_hire" : "project",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,7 @@ const CreateProject = () => {
     return errs;
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) {
@@ -88,8 +90,8 @@ const CreateProject = () => {
         hiringGoal: Number(form.hiringGoal),
         salary: form.salary.trim() || "Negotiable",
         status: form.acceptApplications ? "open" : "closed",
-        isDirectHire: isDirectHireMode || form.isDirectHire,
-        applicationMode: isDirectHireMode || form.isDirectHire ? "direct_hire" : "project",
+        isDirectHire: form.isDirectHire,
+        applicationMode: form.jobType,
         workLocation: form.workLocation.trim(),
         salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
         salaryMax: form.salaryMax ? Number(form.salaryMax) : null,

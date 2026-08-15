@@ -82,7 +82,7 @@ const Navbar = () => {
               {user && (
                 <div className="space-y-2">
                   <button onClick={() => { navigate('/' + user.role + '/dashboard'); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100">Dashboard</button>
-                  <button onClick={() => { navigate('/profile'); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100">Profile</button>
+                  <button onClick={() => { navigate('/profile'); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100">{user.role === "candidate" ? "Profile" : user.role === "company" ? "Company Profile" : user.role === "evaluator" ? "Evaluator Profile" : user.role === "admin" ? "Admin Profile" : "Profile"}</button>
                   <button onClick={() => { logout(); setMobileOpen(false); navigate('/'); }} className="w-full text-left px-3 py-2 rounded-xl text-red-600 hover:bg-red-50">Log Out</button>
                 </div>
               )}
@@ -149,11 +149,11 @@ const Navbar = () => {
               >
                 Dashboard
               </DropdownItem>
-              <DropdownItem
-                icon={() => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+<DropdownItem
+                icon={() => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>}
                 onClick={() => navigate("/profile")}
               >
-                Profile
+                {user.role === "candidate" ? "Profile" : user.role === "company" ? "Company Profile" : user.role === "evaluator" ? "Evaluator Profile" : user.role === "admin" ? "Admin Profile" : "Profile"}
               </DropdownItem>
               <hr className="my-1 border-slate-200" />
               <DropdownItem

@@ -6,27 +6,62 @@ const { getPagination } = require("../utils/pagination");
 // @desc Create a project (company only)
 // @route POST /api/projects
 const createProject = asyncHandler(async (req, res) => {
-  const normalizedStatus = req.body.status || (req.body.status === "closed" ? "closed" : "open");
-  const isDirectHire = Boolean(req.body.isDirectHire);
+  const { title, description, jobDescription, requirements, skillsRequired, domain, difficulty, type, deliverables, durationDays, hiringGoal, salary, salaryMin, salaryMax, workLocation, experienceRequired, customExperience, isDirectHire, acceptApplications, status } = req.body;
+
+  // Validate required fields
+  if (!title?.trim()) {
+    res.status(400);
+    throw new Error("Job title is required");
+  }
+  if (!description?.trim()) {
+    res.status(400);
+    throw new Error("Job description is required");
+  }
+  if (!skillsRequired?.trim()) {
+    res.status(400);
+    throw new Error("At least one skill is required");
+  }
+  if (!durationDays || Number(durationDays) < 1) {
+    res.status(400);
+    throw new Error("Duration must be at least 1 day");
+  }
+  if (!hiringGoal || Number(hiringGoal) < 1) {
+    res.status(400);
+    throw new Error("Hiring goal must be at least 1");
+  }
+
+  const isDirectHireValue = Boolean(isDirectHire);
+  const applicationMode = isDirectHireValue ? "direct_hire" : "project";
+  const normalizedStatus = acceptApplications !== false && status !== "closed" ? "open" : "closed";
+
   const project = await Project.create({
-    ...req.body,
     company: req.user._id,
-    title: req.body.title?.trim() || req.body.jobRole?.trim() || "New Job",
-    jobRole: req.body.jobRole || req.body.title,
-    description: req.body.description || req.body.jobDescription || req.body.jobRole || req.body.title,
-    jobDescription: req.body.jobDescription || req.body.description,
+    title: title.trim(),
+    jobRole: req.body.jobRole || title.trim(),
+    description: description.trim(),
+    jobDescription: jobDescription?.trim() || description.trim(),
     requirements: Array.isArray(req.body.requirements)
       ? req.body.requirements
       : (req.body.requirements || "").split(",").map((s) => s.trim()).filter(Boolean),
     skillsRequired: Array.isArray(req.body.skillsRequired)
       ? req.body.skillsRequired
       : (req.body.skillsRequired || "").split(",").map((s) => s.trim()).filter(Boolean),
-    salary: req.body.salary || (req.body.salaryMin && req.body.salaryMax ? `₹${req.body.salaryMin} - ₹${req.body.salaryMax}` : "Negotiable"),
-    salaryMin: req.body.salaryMin ? Number(req.body.salaryMin) : null,
-    salaryMax: req.body.salaryMax ? Number(req.body.salaryMax) : null,
-    workLocation: req.body.workLocation || "",
-    isDirectHire,
-    applicationMode: isDirectHire ? "direct_hire" : "project",
+    domain: domain || "Full Stack",
+    difficulty: difficulty || "intermediate",
+    type: type || "simulated",
+    deliverables: Array.isArray(req.body.deliverables)
+      ? req.body.deliverables
+      : (req.body.deliverables || "").split(",").map((s) => s.trim()).filter(Boolean),
+    durationDays: Number(durationDays),
+    hiringGoal: Number(hiringGoal),
+    salary: salary || "Negotiable",
+    salaryMin: salaryMin ? Number(salaryMin) : null,
+    salaryMax: salaryMax ? Number(salaryMax) : null,
+    workLocation: workLocation || "",
+    experienceRequired: experienceRequired || "fresher",
+    customExperience: customExperience || "",
+isDirectHireValue,
+    applicationMode,
     status: normalizedStatus,
   });
   res.status(201).json({ success: true, project });
@@ -100,26 +135,58 @@ const updateProject = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to modify this project");
   }
 
-  if (req.body.jobRole) project.jobRole = req.body.jobRole;
-  if (req.body.jobDescription) project.jobDescription = req.body.jobDescription;
-  if (req.body.description) project.description = req.body.description;
-  if (req.body.requirements) {
+  // Prevent role changes and ownership transfer via update
+  if (req.body.company && req.body.company.toString() !== project.company.toString()) {
+    res.status(403);
+    throw new Error("Cannot transfer project ownership");
+  }
+
+  // Only allow relevant fields to be updated
+  if (req.body.title !== undefined) project.title = req.body.title.trim();
+  if (req.body.jobRole !== undefined) project.jobRole = req.body.jobRole.trim();
+  if (req.body.description !== undefined) project.description = req.body.description.trim();
+  if (req.body.jobDescription !== undefined) project.jobDescription = req.body.jobDescription?.trim();
+  if (req.body.requirements !== undefined) {
     project.requirements = Array.isArray(req.body.requirements)
       ? req.body.requirements
       : req.body.requirements.split(",").map((s) => s.trim()).filter(Boolean);
   }
-  if (req.body.salary) project.salary = req.body.salary;
-  if (req.body.salaryMin !== undefined) project.salaryMin = req.body.salaryMin;
-  if (req.body.salaryMax !== undefined) project.salaryMax = req.body.salaryMax;
+  if (req.body.skillsRequired !== undefined) {
+    project.skillsRequired = Array.isArray(req.body.skillsRequired)
+      ? req.body.skillsRequired
+      : req.body.skillsRequired.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  if (req.body.domain !== undefined) project.domain = req.body.domain;
+  if (req.body.difficulty !== undefined) project.difficulty = req.body.difficulty;
+  if (req.body.type !== undefined) project.type = req.body.type;
+  if (req.body.deliverables !== undefined) {
+    project.deliverables = Array.isArray(req.body.deliverables)
+      ? req.body.deliverables
+      : req.body.deliverables.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  if (req.body.durationDays !== undefined) project.durationDays = Number(req.body.durationDays);
+  if (req.body.hiringGoal !== undefined) project.hiringGoal = Number(req.body.hiringGoal);
+  if (req.body.salary !== undefined) project.salary = req.body.salary || "Negotiable";
+  if (req.body.salaryMin !== undefined) project.salaryMin = req.body.salaryMin ? Number(req.body.salaryMin) : null;
+  if (req.body.salaryMax !== undefined) project.salaryMax = req.body.salaryMax ? Number(req.body.salaryMax) : null;
   if (req.body.workLocation !== undefined) project.workLocation = req.body.workLocation;
+  if (req.body.experienceRequired !== undefined) project.experienceRequired = req.body.experienceRequired;
+  if (req.body.customExperience !== undefined) project.customExperience = req.body.customExperience;
   if (req.body.isDirectHire !== undefined) {
     project.isDirectHire = Boolean(req.body.isDirectHire);
     project.applicationMode = project.isDirectHire ? "direct_hire" : "project";
   }
-  if (req.body.experienceRequired) project.experienceRequired = req.body.experienceRequired;
+  if (req.body.experienceRequired !== undefined) project.experienceRequired = req.body.experienceRequired;
   if (req.body.customExperience !== undefined) project.customExperience = req.body.customExperience;
+  if (req.body.acceptApplications !== undefined) {
+    // Update status based on acceptApplications
+    project.status = req.body.acceptApplications !== false && req.body.status !== "closed" ? "open" : "closed";
+  }
+  if (req.body.status !== undefined) {
+    // Allow explicit status change (e.g., open/closed/archived)
+    project.status = req.body.status;
+  }
 
-  Object.assign(project, req.body);
   const updated = await project.save();
   res.json({ success: true, project: updated });
 });

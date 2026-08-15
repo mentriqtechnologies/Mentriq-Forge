@@ -99,28 +99,48 @@ const getMe = asyncHandler(async (req, res) => {
 // @desc Update profile
 // @route PUT /api/auth/me
 const updateMe = asyncHandler(async (req, res) => {
-  const updatableFields = [
-    "name",
-    "phone",
-    "bio",
-    "avatarUrl",
-    "skills",
-    "experienceLevel",
-    "resumeUrl",
-    "portfolioLinks",
-    "companyName",
-    "industry",
-    "companySize",
-    "website",
-  ];
+  // Prevent role changes through profile update - role is immutable via this endpoint
+  const { role, ...updates } = req.body;
 
-  updatableFields.forEach((field) => {
-    if (req.body[field] !== undefined) {
-      req.user[field] = req.body[field];
-    }
-  });
+  // Define field groups per role to prevent cross-role field modification
+  const user = req.user;
 
-  const updated = await req.user.save();
+  // Only allow role-appropriate fields to be updated
+  if (user.role === "candidate") {
+    // Candidates can only update candidate-specific fields
+    user.name = updates.name !== undefined ? updates.name : user.name;
+    user.phone = updates.phone !== undefined ? updates.phone : user.phone;
+    user.bio = updates.bio !== undefined ? updates.bio : user.bio;
+    user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
+    user.skills = updates.skills !== undefined ? updates.skills : user.skills;
+    user.experienceLevel = updates.experienceLevel !== undefined ? updates.experienceLevel : user.experienceLevel;
+    user.resumeUrl = updates.resumeUrl !== undefined ? updates.resumeUrl : user.resumeUrl;
+    user.portfolioLinks = updates.portfolioLinks !== undefined ? updates.portfolioLinks : user.portfolioLinks;
+    user.linkedinUrl = updates.linkedinUrl !== undefined ? updates.linkedinUrl : user.linkedinUrl;
+    user.githubProfile = updates.githubProfile !== undefined ? updates.githubProfile : user.githubProfile;
+  } else if (user.role === "company") {
+    // Companies can only update company-specific fields
+    user.name = updates.name !== undefined ? updates.name : user.name;
+    user.phone = updates.phone !== undefined ? updates.phone : user.phone;
+    user.bio = updates.bio !== undefined ? updates.bio : user.bio;
+    user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
+    user.companyName = updates.companyName !== undefined ? updates.companyName : user.companyName;
+    user.industry = updates.industry !== undefined ? updates.industry : user.industry;
+    user.companySize = updates.companySize !== undefined ? updates.companySize : user.companySize;
+    user.website = updates.website !== undefined ? updates.website : user.website;
+  } else if (user.role === "evaluator") {
+    // Evaluators can update name, bio, avatar
+    user.name = updates.name !== undefined ? updates.name : user.name;
+    user.bio = updates.bio !== undefined ? updates.bio : user.bio;
+    user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
+  } else if (user.role === "admin") {
+    // Admins can update name, bio, avatar
+    user.name = updates.name !== undefined ? updates.name : user.name;
+    user.bio = updates.bio !== undefined ? updates.bio : user.bio;
+    user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
+  }
+
+  const updated = await user.save();
   res.json({ success: true, user: updated.toSafeObject() });
 });
 

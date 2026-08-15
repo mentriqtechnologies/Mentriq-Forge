@@ -48,7 +48,7 @@ const ProjectDetail = () => {
     );
   }
 
-  return (
+return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -62,8 +62,12 @@ const ProjectDetail = () => {
         Back to opportunities
       </Link>
 
-      <div className="flex flex-wrap items-center gap-3 mb-2">
-        <Badge color="forge" dot>Project Based Job</Badge>
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
+        {project.applicationMode === "direct_hire" ? (
+          <Badge color="blue" dot>Normal Job</Badge>
+        ) : (
+          <Badge color="purple" dot>Project Based Job</Badge>
+        )}
         <Badge color="forge" dot>{project.domain}</Badge>
         <StatusBadge status={project.difficulty} />
         {project.status && <StatusBadge status={project.status} />}
@@ -237,7 +241,9 @@ const ProjectDetail = () => {
             >
               {project.status !== "open"
                 ? "Applications Closed"
-                : applied ? "Applied Successfully" : applying ? "Applying..." : "Participate in Project Based Job"}
+                : applied ? "Applied Successfully" : applying ? "Applying..." : project.applicationMode === "direct_hire"
+                  ? "Participate in Normal Job"
+                  : "Participate in Project Based Job"}
             </Button>
           ) : !user ? (
             <Link to="/login">

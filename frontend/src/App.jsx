@@ -18,6 +18,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 
 import CompanyDashboard from "./pages/company/CompanyDashboard";
+import CompanyCandidateReview from "./pages/company/CompanyCandidateReview";
 import CreateProject from "./pages/company/CreateProject";
 import ProjectApplicants from "./pages/company/ProjectApplicants";
 import CompanySettings from "./pages/company/CompanySettings";
@@ -37,6 +38,11 @@ import CandidateVerification from "./pages/admin/CandidateVerification";
 import ApplicationsManager from "./pages/admin/ApplicationsManager";
 import HiredCandidates from "./pages/admin/HiredCandidates";
 import EditProject from "./pages/company/EditProject";
+import EvaluatorDashboard from "./pages/evaluator/Dashboard";
+import EvaluatorInterviewDashboard from "./pages/evaluator/InterviewDashboard";
+import EvaluatorEvaluationResults from "./pages/evaluator/EvaluationResults";
+import ApplicationDetail from "./pages/evaluator/ApplicationDetail";
+import InterviewForm from "./pages/evaluator/InterviewForm";
 
 const PublicLayout = ({ children }) => (
   <>
@@ -84,6 +90,14 @@ function App() {
           }
         />
         <Route
+          path="/company/candidate-review/:applicationId"
+          element={
+            <ProtectedRoute allowedRoles={["company"]}>
+              <AuthLayout><CompanyCandidateReview /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/company/projects/new"
           element={
             <ProtectedRoute allowedRoles={["company"]}>
@@ -101,6 +115,14 @@ function App() {
         />
         <Route
           path="/company/settings"
+          element={
+            <ProtectedRoute allowedRoles={["company"]}>
+              <AuthLayout><CompanySettings /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/company/profile"
           element={
             <ProtectedRoute allowedRoles={["company"]}>
               <AuthLayout><CompanySettings /></AuthLayout>
@@ -146,6 +168,62 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
               <AuthLayout><AdminDashboard /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+              <AuthLayout><AdminDashboard /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/profile"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><Profile /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><EvaluatorDashboard /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/application/:applicationId"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><ApplicationDetail /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/interview/form/:applicationId"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><InterviewForm /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/interview/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><EvaluatorInterviewDashboard /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/evaluations/:applicationId"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><EvaluatorEvaluationResults /></AuthLayout>
             </ProtectedRoute>
           }
         />

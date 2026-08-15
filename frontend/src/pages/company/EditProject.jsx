@@ -26,6 +26,7 @@ const EditProject = () => {
     difficulty: "intermediate",
     experienceRequired: "fresher",
     customExperience: "",
+    jobType: "project",
     status: "open",
   });
 
@@ -49,6 +50,7 @@ const EditProject = () => {
           difficulty: p.difficulty || "intermediate",
           experienceRequired: p.experienceRequired || "fresher",
           customExperience: p.customExperience || "",
+          jobType: p.applicationMode || "project",
           status: p.status || "open",
         });
       } catch (err) {
