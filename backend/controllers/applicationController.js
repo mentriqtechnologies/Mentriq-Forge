@@ -214,7 +214,7 @@ const getAllApplications = asyncHandler(async (req, res) => {
 // @route GET /api/applications/:id
 const getApplicationDetail = asyncHandler(async (req, res) => {
   const application = await Application.findById(req.params.id)
-    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile")
+    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile isVerified")
     .populate({
       path: "project",
       select: "title jobRole domain applicationMode difficulty skillsRequired deadline status maxCandidates deliverables isDirectHire",
@@ -468,7 +468,7 @@ const getCompanyApplicationDetail = asyncHandler(async (req, res) => {
   const applicationId = req.params.applicationId;
 
   const application = await Application.findById(applicationId)
-    .populate("candidate", "name email githubUsername linkedinUsername bio experienceLevel skills githubProfile linkedinUrl portfolioUrl resumeUrl")
+    .populate("candidate", "name email githubUsername linkedinUsername bio experienceLevel skills githubProfile linkedinUrl portfolioUrl resumeUrl isVerified")
     .populate({
       path: "project",
       select: "title domain applicationMode difficulty skillsRequired type deadline maxCandidates hiringGoal deliverables isPaidSlot",
@@ -590,7 +590,9 @@ const companyScheduleInterview = asyncHandler(async (req, res) => {
   const applicationId = req.params.applicationId;
   const { mode, date, startTime, endTime, location, meetingUrl, interviewType, instructions } = req.body;
 
-  const application = await Application.findById(applicationId).populate("project");
+  const application = await Application.findById(applicationId)
+    .populate("project")
+    .populate("candidate", "name email");
   if (!application) {
     res.status(404);
     throw new Error("Application not found");
@@ -630,6 +632,17 @@ const companyScheduleInterview = asyncHandler(async (req, res) => {
 
   // Update application status to interview_scheduled
   await recordStatus(application, "interview_scheduled", req.user);
+
+  // Notify the candidate by email (best effort — never fails the request)
+  try {
+    await sendInterviewNotificationEmail({
+      to: application.candidate?.email,
+      interview,
+      projectTitle: application.project?.title || "a MentriQ Forge opportunity",
+    });
+  } catch (err) {
+    console.warn("Interview notification email could not be sent:", err.message);
+  }
 
   res.status(201).json({ success: true, interview, application });
 });

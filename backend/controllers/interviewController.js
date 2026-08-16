@@ -85,14 +85,18 @@ const getInterview = asyncHandler(async (req, res) => {
     throw new Error("Interview not found");
   }
 
-  // Security: check ownership
-  if (interview.interviewOwner === "company" && req.user.role !== "company") {
+  // Security: check ownership (the candidate who is being interviewed can also view)
+  const isCandidateOwner =
+    req.user.role === "candidate" &&
+    interview.candidate?._id?.toString() === req.user._id.toString();
+  if (interview.interviewOwner === "company" && req.user.role !== "company" && !isCandidateOwner) {
     res.status(403);
     throw new Error("Not authorized to view this interview");
   }
   if (
     interview.interviewOwner === "evaluator" &&
-    !["evaluator", "admin"].includes(req.user.role)
+    !["evaluator", "admin"].includes(req.user.role) &&
+    !isCandidateOwner
   ) {
     res.status(403);
     throw new Error("Not authorized to view this interview");
@@ -114,6 +118,20 @@ const getInterviewsByApplication = asyncHandler(async (req, res) => {
 const getInterviewsByCandidate = asyncHandler(async (req, res) => {
   const interviews = await Interview.find({ candidate: req.params.candidateId })
     .sort({ createdAt: -1 });
+  res.json({ success: true, interviews });
+});
+
+// @desc Get the logged-in candidate's own interviews
+// @route GET /api/interviews/my
+const getMyInterviews = asyncHandler(async (req, res) => {
+  const interviews = await Interview.find({ candidate: req.user._id })
+    .populate({
+      path: "application",
+      select: "applicationType status",
+      populate: { path: "project", select: "title domain company" },
+    })
+    .populate("createdBy", "name")
+    .sort({ date: 1, startTime: 1 });
   res.json({ success: true, interviews });
 });
 
@@ -282,6 +300,7 @@ module.exports = {
   getInterviews,
   getInterviewsByApplication,
   getInterviewsByCandidate,
+  getMyInterviews,
   updateInterview,
   completeInterview,
   cancelInterview,

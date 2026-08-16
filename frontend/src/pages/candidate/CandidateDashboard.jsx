@@ -6,7 +6,7 @@ import {
   Briefcase, FileText, CheckCircle, Clock, Award,
   ChevronDown, ChevronRight, RefreshCw, GitBranch, ExternalLink,
   BarChart3, Code2, Activity, MessageSquareQuote, BadgeCheck, XCircle,
-  ListTree,
+  ListTree, CalendarClock, MapPin, Video, Mail,
 } from "lucide-react";
 import { PageHeader, StatCard, Card, Badge, StatusBadge, Button, EmptyState } from "../../components/ui";
 import Avatar from "../../components/ui/Avatar";
@@ -152,6 +152,7 @@ const CandidateDashboard = () => {
   const [stats, setStats] = useState(null);
   const [applications, setApplications] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [interviews, setInterviews] = useState([]);
   const [expanded, setExpanded] = useState({});
   const [journeyOpen, setJourneyOpen] = useState({});
   const [verification, setVerification] = useState(null);
@@ -161,7 +162,12 @@ const CandidateDashboard = () => {
     api.get("/applications/my").then((res) => setApplications(res.data.applications));
     api.get("/submissions/my").then((res) => setSubmissions(res.data.submissions));
     api.get("/verification/me").then((res) => setVerification(res.data.verification)).catch(() => {});
+    api.get("/interviews/my").then((res) => setInterviews(res.data.interviews)).catch(() => {});
   }, []);
+
+  const activeInterviews = interviews.filter((iv) =>
+    ["scheduled", "confirmed", "rescheduled"].includes(iv.status)
+  );
 
   const getSubmissionForApp = (appId) =>
     submissions.find((s) => s.application === appId || s.application?._id === appId);
@@ -240,6 +246,98 @@ const CandidateDashboard = () => {
         <StatCard label="Submitted" value={stats?.submitted} icon={CheckCircle} color="green" />
         <StatCard label="Shortlisted" value={stats?.shortlisted} icon={Award} color="purple" />
         <StatCard label="Hired" value={stats?.hired} icon={Briefcase} color="green" />
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold font-heading text-slate-900">Upcoming Interviews</h2>
+          <span className="text-sm text-slate-400">{activeInterviews.length} scheduled</span>
+        </div>
+
+        {activeInterviews.length === 0 ? (
+          <Card hover={false}>
+            <div className="p-6 text-center">
+              <CalendarClock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-400">
+                No interviews scheduled yet. When a meeting is set, the link and details will appear here.
+              </p>
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {activeInterviews.map((iv, i) => {
+              const isOnline = iv.mode === "online";
+              const interviewDate = iv.date ? new Date(iv.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "—";
+              const timeRange = [iv.startTime, iv.endTime].filter(Boolean).join(" – ") || "—";
+              return (
+                <motion.div
+                  key={iv._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <Card padding={false} hover={false}>
+                    <div className="p-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2.5 rounded-xl shrink-0 ${isOnline ? "bg-blue-50" : "bg-purple-50"}`}>
+                            {isOnline ? <Video className="w-5 h-5 text-blue-500" /> : <MapPin className="w-5 h-5 text-purple-500" />}
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-sm font-bold font-heading text-slate-900">{iv.interviewType || "Interview"}</h3>
+                              <Badge color={isOnline ? "blue" : "purple"}>{isOnline ? "Online" : "Offline"}</Badge>
+                              <StatusBadge status={iv.status} />
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">{iv.application?.project?.title || "MentriQ Forge opportunity"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-medium">{interviewDate} · {timeRange}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                        {iv.interviewOwner === "company" ? (
+                          <div className="flex items-start gap-2.5 text-amber-700">
+                            <Mail className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
+                            <div>
+                              <p className="font-semibold text-amber-800">Check your mail for more info</p>
+                              <p className="text-xs text-amber-600 mt-0.5">
+                                The company will email or call you with the interview details.
+                              </p>
+                            </div>
+                          </div>
+                        ) : isOnline ? (
+                          iv.meetingUrl ? (
+                            <a
+                              href={iv.meetingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 font-semibold text-blue-600 hover:underline"
+                            >
+                              <Video className="w-4 h-4" /> Join Meeting
+                            </a>
+                          ) : (
+                            <p className="text-slate-500">Meeting link will be shared shortly.</p>
+                          )
+                        ) : (
+                          <p className="inline-flex items-center gap-2 font-medium text-slate-700">
+                            <MapPin className="w-4 h-4 text-purple-500" /> {iv.location || "Location to be announced"}
+                          </p>
+                        )}
+                        {iv.instructions && (
+                          <p className="text-xs text-slate-500 mt-2"><span className="font-semibold text-slate-600">Instructions:</span> {iv.instructions}</p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </motion.div>
 
       <motion.div variants={itemVariants}>

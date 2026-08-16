@@ -6,6 +6,7 @@ const {
   getInterviews,
   getInterviewsByApplication,
   getInterviewsByCandidate,
+  getMyInterviews,
   updateInterview,
   completeInterview,
   cancelInterview,
@@ -40,6 +41,7 @@ router.get(
   authorize("evaluator", "admin"),
   getInterviewsByCandidate
 );
+router.get("/my", protect, authorize("candidate"), getMyInterviews);
 router.get("/:id", protect, getInterview);
 router.get("/:id/evaluations", protect, getInterviewEvaluations);
 router.put("/:id", protect, authorize("evaluator", "company"), updateInterview);
