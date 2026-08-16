@@ -129,14 +129,12 @@ const getApplicationsForProject = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to view these applications");
   }
 
-  // Companies can only view approved (verified) candidates. Direct-hire applicants
-  // share their details with the company directly, so they are always visible.
+  // Companies see every candidate on direct jobs and every forwarded profile on
+  // project-based jobs. Forwarding (shortlist) by the evaluation team is the access
+  // gate itself, so no separate verification filter is applied here.
   // Admins/evaluators see all.
   const isDirectJob = project.applicationMode === "direct_hire";
-  const candidatePopulate =
-    req.user.role === "company" && !isDirectJob
-      ? { path: "candidate", match: { isVerified: true }, select: "name email skills experienceLevel resumeUrl" }
-      : { path: "candidate", select: "name email skills experienceLevel resumeUrl" };
+  const candidatePopulate = { path: "candidate", select: "name email skills experienceLevel resumeUrl" };
 
   const applications = await Application.find({ project: req.params.projectId })
     .populate(candidatePopulate)
@@ -234,20 +232,15 @@ const getApplicationDetail = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to view this application");
   }
 
-  // Companies can only view approved (verified) candidates and, for project-based
-  // hiring, only profiles the MentriQ team has forwarded to them. Direct-hire
-  // applicants share their details with the company directly, so they are always visible.
+  // Company visibility rule:
+  // - Direct-hire applicants share their details with the company directly, so they are always visible.
+  // - Project-based: the moment the evaluation team forwards (shortlists) a profile,
+  //   the company instantly gets full access. Profiles not yet forwarded stay hidden.
   if (role === "company") {
     const isDirectJob = application.project.applicationMode === "direct_hire";
-    if (!isDirectJob) {
-      if (!application.candidate.isVerified) {
-        res.status(403);
-        throw new Error("Not authorized to view this application");
-      }
-      if (!FORWARDED_STATUSES.includes(application.status)) {
-        res.status(403);
-        throw new Error("This profile is still under review by the MentriQ team");
-      }
+    if (!isDirectJob && !FORWARDED_STATUSES.includes(application.status)) {
+      res.status(403);
+      throw new Error("This profile is still under review by the MentriQ team");
     }
   }
 
@@ -481,18 +474,15 @@ const getCompanyApplicationDetail = asyncHandler(async (req, res) => {
   }
 
   // Security: only company owner or admin can view
-  if (application.project.company.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+  if (application.project.company?._id?.toString() !== req.user._id.toString() && req.user.role !== "admin") {
     res.status(403);
     throw new Error("Not authorized to view this application");
   }
 
-  // Visibility gate: companies may only see approved (verified) candidates whose
-  // profiles the evaluation team has forwarded (project-based hiring).
+  // Visibility rule: companies may only see profiles the evaluation team has
+  // forwarded (project-based hiring). Forwarding gives instant full access —
+  // no separate verification requirement. Direct jobs are always visible.
   if (req.user.role === "company") {
-    if (!application.candidate?.isVerified) {
-      res.status(403);
-      throw new Error("Not authorized to view this application");
-    }
     const isDirectJob = application.project.applicationMode === "direct_hire";
     if (!isDirectJob && !FORWARDED_STATUSES.includes(application.status)) {
       res.status(403);
