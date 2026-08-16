@@ -76,7 +76,9 @@ const EditProject = () => {
         customExperience: form.experienceRequired === "custom" ? form.customExperience : "",
       };
       await api.put(`/projects/${projectId}`, payload);
-      navigate(`/company/projects/${projectId}/applicants`);
+      navigate(`/company/projects/${projectId}/applicants`, {
+        state: { success: `Your ${form.isDirectHire ? "job" : "project-based job"} "${form.title}" has been updated successfully!` },
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update project");
     } finally {

@@ -99,7 +99,13 @@ const handleSubmit = async (e) => {
         customExperience: form.experienceRequired === "custom" ? form.customExperience : "",
       };
       const res = await api.post("/projects", payload);
-      navigate(`/company/projects/${res.data.project._id}/applicants`);
+      navigate(`/company/projects/${res.data.project._id}/applicants`, {
+        state: {
+          success: res.data.project.isDirectHire
+            ? `Your job "${res.data.project.title}" has been posted successfully!`
+            : `Your project-based job "${res.data.project.title}" has been posted successfully!`,
+        },
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create project");
     } finally {

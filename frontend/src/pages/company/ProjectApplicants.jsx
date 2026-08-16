@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import api from "../../api/axios";
-import { Users, ArrowLeft, ChevronDown, Mail, Briefcase, Award } from "lucide-react";
+import { Users, ArrowLeft, ChevronDown, Mail, Briefcase, Award, CheckCircle } from "lucide-react";
 import { PageHeader, Card, Badge, StatusBadge, Button, EmptyState, Avatar, Select } from "../../components/ui";
 
 const statusOptions = [
@@ -28,6 +28,8 @@ const companyStageOptions = [
 
 const ProjectApplicants = () => {
   const { projectId } = useParams();
+  const location = useLocation();
+  const [successMessage, setSuccessMessage] = useState(location.state?.success || "");
   const [applications, setApplications] = useState([]);
 
   const fetchApplications = async () => {
@@ -55,6 +57,19 @@ const ProjectApplicants = () => {
           description="Review applicants and move them through the hiring flow."
         />
       </div>
+
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 flex items-start gap-3 mb-6">
+          <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="flex-1">{successMessage}</div>
+          <button
+            onClick={() => setSuccessMessage("")}
+            className="text-emerald-500 hover:text-emerald-700 text-xs font-medium shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {applications.length === 0 ? (
