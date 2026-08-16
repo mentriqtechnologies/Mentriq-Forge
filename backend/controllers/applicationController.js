@@ -215,8 +215,11 @@ const getAllApplications = asyncHandler(async (req, res) => {
 const getApplicationDetail = asyncHandler(async (req, res) => {
   const application = await Application.findById(req.params.id)
     .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile")
-    .populate("project", "title jobRole domain applicationMode difficulty skillsRequired deadline status maxCandidates deliverables isDirectHire")
-    .populate("project.company", "name companyName industry");
+    .populate({
+      path: "project",
+      select: "title jobRole domain applicationMode difficulty skillsRequired deadline status maxCandidates deliverables isDirectHire",
+      populate: { path: "company", select: "name companyName industry" },
+    });
 
   if (!application) {
     res.status(404);
@@ -466,8 +469,11 @@ const getCompanyApplicationDetail = asyncHandler(async (req, res) => {
 
   const application = await Application.findById(applicationId)
     .populate("candidate", "name email githubUsername linkedinUsername bio experienceLevel skills githubProfile linkedinUrl portfolioUrl resumeUrl")
-    .populate("project", "title domain applicationMode difficulty skillsRequired type deadline maxCandidates hiringGoal deliverables isPaidSlot")
-    .populate("project.company", "companyName industry");
+    .populate({
+      path: "project",
+      select: "title domain applicationMode difficulty skillsRequired type deadline maxCandidates hiringGoal deliverables isPaidSlot",
+      populate: { path: "company", select: "companyName industry" },
+    });
 
   if (!application) {
     res.status(404);
