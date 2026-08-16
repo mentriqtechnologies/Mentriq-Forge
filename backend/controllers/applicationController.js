@@ -129,9 +129,12 @@ const getApplicationsForProject = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to view these applications");
   }
 
-  // Companies can only view approved (verified) candidates. Admins/evaluators see all.
+  // Companies can only view approved (verified) candidates. Direct-hire applicants
+  // share their details with the company directly, so they are always visible.
+  // Admins/evaluators see all.
+  const isDirectJob = project.applicationMode === "direct_hire";
   const candidatePopulate =
-    req.user.role === "company"
+    req.user.role === "company" && !isDirectJob
       ? { path: "candidate", match: { isVerified: true }, select: "name email skills experienceLevel resumeUrl" }
       : { path: "candidate", select: "name email skills experienceLevel resumeUrl" };
 
@@ -147,7 +150,6 @@ const getApplicationsForProject = asyncHandler(async (req, res) => {
   //   team reviews and forwards (shortlists) their profile.
   // - Direct jobs: candidates appear on the company page immediately after applying.
   if (req.user.role === "company") {
-    const isDirectJob = project.applicationMode === "direct_hire";
     const data = isDirectJob
       ? visible
       : visible.filter((a) => FORWARDED_STATUSES.includes(a.status));
@@ -212,7 +214,7 @@ const getAllApplications = asyncHandler(async (req, res) => {
 // @route GET /api/applications/:id
 const getApplicationDetail = asyncHandler(async (req, res) => {
   const application = await Application.findById(req.params.id)
-    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile")
+    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile")
     .populate("project", "title jobRole domain applicationMode difficulty skillsRequired deadline status maxCandidates deliverables isDirectHire")
     .populate("project.company", "name companyName industry");
 
@@ -230,16 +232,19 @@ const getApplicationDetail = asyncHandler(async (req, res) => {
   }
 
   // Companies can only view approved (verified) candidates and, for project-based
-  // hiring, only profiles the MentriQ team has forwarded to them.
+  // hiring, only profiles the MentriQ team has forwarded to them. Direct-hire
+  // applicants share their details with the company directly, so they are always visible.
   if (role === "company") {
-    if (!application.candidate.isVerified) {
-      res.status(403);
-      throw new Error("Not authorized to view this application");
-    }
     const isDirectJob = application.project.applicationMode === "direct_hire";
-    if (!isDirectJob && !FORWARDED_STATUSES.includes(application.status)) {
-      res.status(403);
-      throw new Error("This profile is still under review by the MentriQ team");
+    if (!isDirectJob) {
+      if (!application.candidate.isVerified) {
+        res.status(403);
+        throw new Error("Not authorized to view this application");
+      }
+      if (!FORWARDED_STATUSES.includes(application.status)) {
+        res.status(403);
+        throw new Error("This profile is still under review by the MentriQ team");
+      }
     }
   }
 
