@@ -32,9 +32,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
-if (process.env.NODE_ENV !== "production") {
-  app.use(morgan("dev"));
-}
+app.use(morgan(process.env.NODE_ENV === "production" ? "tiny" : "dev"));
 
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "MentriQ Forge API is running", time: new Date() });
