@@ -161,7 +161,14 @@ const CandidateSettings = () => {
     }
   };
 
-  const githubLinkUrl = `${import.meta.env.VITE_API_URL || "/api"}/auth/github/link`;
+  const handleConnectGithub = async () => {
+    try {
+      const res = await api.get("/auth/github/link");
+      window.location.href = res.data.url;
+    } catch (err) {
+      setProfileError(err.response?.data?.message || "Failed to start GitHub connection");
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl mx-auto">
@@ -460,11 +467,9 @@ const CandidateSettings = () => {
                 </div>
               </div>
             ) : (
-              <a href={githubLinkUrl}>
-                <Button variant="outline" icon={GitBranch} size="md" className="mb-6">
-                  Connect GitHub
-                </Button>
-              </a>
+              <Button variant="outline" icon={GitBranch} size="md" className="mb-6" onClick={handleConnectGithub}>
+                Connect GitHub
+              </Button>
             )}
 
             <div className="pt-4 border-t border-slate-100">

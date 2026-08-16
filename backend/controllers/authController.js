@@ -323,17 +323,19 @@ const githubCallback = asyncHandler(async (req, res) => {
 });
 
 // @desc Initiate GitHub account linking from profile settings
-// @route GET /api/auth/github/link
+// Returns the signed GitHub authorize URL (frontend calls this with its auth token,
+// then redirects the browser) — @route GET /api/auth/github/link
 const githubLink = asyncHandler(async (req, res) => {
   const clientId = process.env.GITHUB_CLIENT_ID?.trim();
   const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) {
-    return res.redirect(`${process.env.CLIENT_URL}/profile?github_error=GitHub+OAuth+is+not+configured.+Add+GITHUB_CLIENT_ID+and+GITHUB_CLIENT_SECRET+to+backend+.env`);
+    res.status(500);
+    throw new Error("GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to backend/.env");
   }
   const state = jwt.sign({ id: req.user._id, action: "link" }, process.env.JWT_SECRET, { expiresIn: "5m" });
   const redirectUri = `${process.env.SERVER_URL}/api/auth/github/callback`;
   const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=read:user,user:email`;
-  res.redirect(url);
+  res.json({ success: true, url });
 });
 
 // @desc Unlink GitHub account from profile
