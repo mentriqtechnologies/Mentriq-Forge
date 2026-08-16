@@ -17,7 +17,8 @@ const createProject = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Job description is required");
   }
-  if (!skillsRequired?.trim()) {
+  const skillsValue = Array.isArray(skillsRequired) ? skillsRequired.join(",") : skillsRequired;
+  if (!skillsValue?.trim()) {
     res.status(400);
     throw new Error("At least one skill is required");
   }
