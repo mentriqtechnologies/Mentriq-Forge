@@ -173,8 +173,17 @@ const deleteMe = asyncHandler(async (req, res) => {
 // @desc Redirect user to GitHub OAuth (login / signup)
 // @route GET /api/auth/github
 const githubAuth = (req, res) => {
+  const clientId = process.env.GITHUB_CLIENT_ID?.trim();
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    res.status(500).json({
+      success: false,
+      message: "GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to backend/.env before enabling Continue with GitHub.",
+    });
+    return;
+  }
   const redirectUri = `${process.env.SERVER_URL}/api/auth/github/callback`;
-  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
   res.redirect(url);
 };
 
@@ -182,9 +191,17 @@ const githubAuth = (req, res) => {
 // @route GET /api/auth/github/callback
 const githubCallback = asyncHandler(async (req, res) => {
   const { code, state } = req.query;
+
+  // Failures redirect back to the app with a readable message instead of raw JSON
+  const errorRedirect = (msg) => {
+    const target = state
+      ? `${process.env.CLIENT_URL}/profile?github_error=${encodeURIComponent(msg)}`
+      : `${process.env.CLIENT_URL}/login?error=${encodeURIComponent(msg)}`;
+    return res.redirect(target);
+  };
+
   if (!code) {
-    res.status(400);
-    throw new Error("Missing authorization code");
+    return errorRedirect("GitHub authorization was cancelled or failed");
   }
 
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
@@ -196,20 +213,13 @@ const githubCallback = asyncHandler(async (req, res) => {
       code,
     }),
   });
-  // const tokenData = await tokenRes.json();
-  // if (!tokenData.access_token) {
-  //   res.status(401);
-  //   throw new Error("Failed to get GitHub access token");
-  // }
-
   const tokenData = await tokenRes.json();
 
-console.log("GitHub Token Response:", tokenData);
-
-if (!tokenData.access_token) {
-  res.status(401);
-  throw new Error(JSON.stringify(tokenData));
-}
+  if (!tokenData.access_token) {
+    console.warn("GitHub token exchange failed:", tokenData);
+    const msg = tokenData.error_description || tokenData.error || "GitHub token exchange failed";
+    return errorRedirect(msg);
+  }
 
   const userRes = await fetch("https://api.github.com/user", {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -315,9 +325,14 @@ if (!tokenData.access_token) {
 // @desc Initiate GitHub account linking from profile settings
 // @route GET /api/auth/github/link
 const githubLink = asyncHandler(async (req, res) => {
+  const clientId = process.env.GITHUB_CLIENT_ID?.trim();
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    return res.redirect(`${process.env.CLIENT_URL}/profile?github_error=GitHub+OAuth+is+not+configured.+Add+GITHUB_CLIENT_ID+and+GITHUB_CLIENT_SECRET+to+backend+.env`);
+  }
   const state = jwt.sign({ id: req.user._id, action: "link" }, process.env.JWT_SECRET, { expiresIn: "5m" });
   const redirectUri = `${process.env.SERVER_URL}/api/auth/github/callback`;
-  const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=read:user,user:email`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=read:user,user:email`;
   res.redirect(url);
 });
 
