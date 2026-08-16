@@ -4,6 +4,7 @@ const Project = require("../models/Project");
 const Application = require("../models/Application");
 const Submission = require("../models/Submission");
 const Evaluation = require("../models/Evaluation");
+const Interview = require("../models/Interview");
 const User = require("../models/User");
 
 // @desc Company dashboard stats
@@ -236,6 +237,21 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
       : Promise.resolve(0),
   ]);
 
+  // Every officially hired candidate (both project-based and direct jobs) so the
+  // evaluation team can see all hires on the platform.
+  const [recentHires, totalHires] = await Promise.all([
+    Application.find({ status: "hired" })
+      .populate("candidate", "name email avatarUrl")
+      .populate({
+        path: "project",
+        select: "title jobRole applicationMode company",
+        populate: { path: "company", select: "name companyName" },
+      })
+      .sort({ updatedAt: -1 })
+      .limit(6),
+    Application.countDocuments({ status: "hired" }),
+  ]);
+
   const avgScore = avgAgg.length ? Number(avgAgg[0].avg.toFixed(2)) : 0;
   const recommendations = { shortlist: 0, reject: 0, needs_upskilling: 0 };
   recAgg.forEach((r) => {
@@ -250,11 +266,13 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
       myEvaluations,
       avgScore,
       hiredFromMyReviews: hiredCountFromMyReviews,
+      totalHires,
       ...recommendations,
     },
     upcomingInterviews,
     recentPending,
     hiredFromMyReviews,
+    recentHires,
   });
 });
 

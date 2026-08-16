@@ -55,12 +55,13 @@ const EvaluatorDashboard = () => {
       />
 
       <motion.div variants={itemVariants}>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           <StatCard label="Pending Submissions" value={loading ? "—" : stats.pendingSubmissions ?? 0} icon={FileText} color="forge" />
           <StatCard label="Reviewed" value={loading ? "—" : stats.reviewedSubmissions ?? 0} icon={CheckCircle} color="green" />
           <StatCard label="My Evaluations" value={loading ? "—" : stats.myEvaluations ?? 0} icon={ClipboardCheck} color="purple" />
           <StatCard label="Average Score" value={loading ? "—" : stats.avgScore ?? 0} icon={TrendingUp} color="orange" />
-          <StatCard label="Hired from My Reviews" value={loading ? "—" : stats.hiredFromMyReviews ?? 0} icon={Award} color="purple" />
+          <StatCard label="Total Hires" value={loading ? "—" : stats.totalHires ?? 0} icon={Award} color="green" />
+          <StatCard label="Hired from My Reviews" value={loading ? "—" : stats.hiredFromMyReviews ?? 0} icon={GraduationCap} color="purple" />
         </div>
       </motion.div>
 
@@ -193,13 +194,8 @@ const EvaluatorDashboard = () => {
       <motion.div variants={itemVariants}>
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold font-heading text-slate-900">Hired from Your Reviews</h3>
-            <Link
-              to="/evaluator/applications"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-forge-primary hover:underline"
-            >
-              Open Application Review <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <h3 className="text-sm font-bold font-heading text-slate-900">Recently Hired</h3>
+            <span className="text-xs text-slate-400">{stats.totalHires ?? 0} total hire{stats.totalHires !== 1 ? "s" : ""}</span>
           </div>
           {loading ? (
             <div className="space-y-3">
@@ -207,15 +203,15 @@ const EvaluatorDashboard = () => {
                 <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
               ))}
             </div>
-          ) : (data?.hiredFromMyReviews || []).length === 0 ? (
+          ) : (data?.recentHires || []).length === 0 ? (
             <EmptyState
               icon={Award}
               title="No hires yet"
-              description="Candidates you reviewed will appear here once a company officially hires them."
+              description="Candidates officially hired by companies will appear here."
             />
           ) : (
             <div className="space-y-2">
-              {data.hiredFromMyReviews.map((app) => (
+              {data.recentHires.map((app) => (
                 <Link
                   key={app._id}
                   to={`/evaluator/application/${app._id}`}
