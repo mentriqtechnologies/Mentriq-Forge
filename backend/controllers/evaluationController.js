@@ -4,9 +4,42 @@ const Interview = require("../models/Interview");
 const Application = require("../models/Application");
 const Submission = require("../models/Submission");
 const User = require("../models/User");
+const { recordStatus } = require("./applicationController");
 
 // Application statuses the MentriQ team uses to forward a profile to the company
 const FORWARDED_STATUSES = ["shortlisted", "interview_scheduled", "hired"];
+
+// Recommendation -> application status mapping used to drive the hiring pipeline.
+// An evaluator's recommendation automatically moves the application forward so the
+// company sees the candidate only after the MentriQ team has reviewed the work.
+const STATUS_BY_RECOMMENDATION = {
+  shortlist: "shortlisted",
+  reject: "rejected",
+  needs_upskilling: "under_review",
+};
+
+// @desc Get all evaluations (evaluator/admin monitoring view)
+// @route GET /api/evaluations?applicationId=...&search=...
+const getEvaluations = asyncHandler(async (req, res) => {
+  const { applicationId } = req.query;
+  const query = {};
+  if (applicationId) query.application = applicationId;
+
+  const evaluations = await Evaluation.find(query)
+    .populate("evaluator", "name")
+    .populate("submission", "repoUrl liveDemoUrl driveLink notes")
+    .populate("application", "candidate project")
+    .sort({ createdAt: -1 })
+    .limit(100);
+
+  const results = evaluations.map((ev) => ({
+    evaluation: ev,
+    submission: ev.submission,
+    project: ev.application?.project,
+  }));
+
+  res.json({ success: true, evaluations: results });
+});
 
 // @desc Get all evaluations for the logged-in candidate's own submissions (feedback view)
 const getMyEvaluations = asyncHandler(async (req, res) => {
@@ -85,6 +118,17 @@ const createEvaluation = asyncHandler(async (req, res) => {
 
   submission.status = "reviewed";
   await submission.save();
+
+  // Drive the hiring pipeline: the recommendation updates the application status so
+  // the company only sees profiles the MentriQ team has moved forward (shortlist),
+  // and rejected/needs-upskilling candidates are routed accordingly.
+  if (submission.application) {
+    const targetStatus = STATUS_BY_RECOMMENDATION[recommendation];
+    if (targetStatus) {
+      const application = await Application.findById(submission.application);
+      if (application) await recordStatus(application, targetStatus, req.user);
+    }
+  }
 
   // Also create an linked interview evaluation if an interview exists
   const interview = await Interview.findOne({ application: submission.application });
@@ -240,10 +284,10 @@ const getInterviewDetail = asyncHandler(async (req, res) => {
 
 module.exports = {
   createEvaluation,
+  getEvaluations,
   getEvaluationBySubmission,
   getInterviewEvaluations,
   createInterviewEvaluation,
   getInterviewDetail,
   getMyEvaluations,
-  getShortlistForProject: (req, res) => res.json({ success: true, message: "Not implemented yet" }),
 };

@@ -23,7 +23,7 @@ const EvaluatorEvaluationResults = () => {
       let params = {};
       if (applicationId) params.applicationId = applicationId;
       if (search) params.search = search;
-      const res = await api.get("/api/evaluations", { params });
+      const res = await api.get("/evaluations", { params });
       setEvaluations(res.data.evaluations || []);
       setLoading(false);
     } catch (err) {
@@ -69,11 +69,14 @@ const EvaluatorEvaluationResults = () => {
           onChange={(e) => navigate(`/evaluator/evaluations/${e.target.value}`)}
         >
           <option value="">All Applications</option>
-          {evaluations.map((ev) => (
-            <option key={ev._id} value={ev.application}>
-              {ev.application ? `App ${ev.application}` : "Unknown"}
-            </option>
-          ))}
+          {evaluations.map((ev, idx) => {
+            const evObj = ev.evaluation;
+            return (
+              <option key={idx} value={evObj.application || ""}>
+                {evObj.application ? `App ${evObj.application}` : "Unknown"}
+              </option>
+            );
+          })}
         </Select>
         <Input
           type="text"
@@ -112,7 +115,7 @@ const EvaluatorEvaluationResults = () => {
                       Submission {ev.submission?.repoUrl ? ev.submission.repoUrl.split("/").pop() : "N/A"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {ev.evaluator?.name || "Evaluator"} • {new Date(ev.createdAt).toLocaleDateString()}
+                      {evObj.evaluator?.name || "Evaluator"} • {new Date(evObj.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   {recBadge}

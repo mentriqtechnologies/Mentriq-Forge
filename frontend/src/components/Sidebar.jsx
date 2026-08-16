@@ -23,6 +23,7 @@ import {
   Building2,
   Award,
   ClipboardList,
+  CalendarClock,
 } from "lucide-react";
 
 const roleNavItems = {
@@ -39,22 +40,20 @@ const roleNavItems = {
     { to: "/profile", label: "Profile", icon: UserCircle },
   ],
   evaluator: [
-    { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/admin/applications", label: "Applications", icon: Briefcase },
-    { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
-    { to: "/admin/submissions", label: "Submissions", icon: FileText },
-    { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
+    { to: "/evaluator/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/evaluator/applications", label: "Application Review", icon: Users },
+    { to: "/evaluator/submissions", label: "Evaluation Queue", icon: FileText },
+    { to: "/evaluator/interview/dashboard", label: "Interviews", icon: CalendarClock },
     { to: "/profile", label: "Profile", icon: UserCircle },
   ],
   admin: [
     { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/admin/applications", label: "Applications", icon: Briefcase },
     { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
-    { to: "/admin/submissions", label: "Submissions", icon: FileText },
-    { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
     { to: "/admin/manage-jobs", label: "Manage Jobs & Projects", icon: ClipboardList },
     { to: "/admin/users", label: "Manage Users", icon: Shield },
     { to: "/admin/deleted-reports", label: "Deleted Reports", icon: Archive },
+    { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
     { to: "/profile", label: "Profile", icon: UserCircle },
   ],
 };

@@ -2,17 +2,7 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
 const { sendEmail } = require("../utils/email");
 const { getPagination } = require("../utils/pagination");
-
-// Profile fields a candidate must complete before the MentriQ team reviews them
-const getMissingProfileFields = (user) => {
-  const missing = [];
-  if (!user.name || !String(user.name).trim()) missing.push("Full Name");
-  if (!user.phone || !String(user.phone).trim()) missing.push("Phone Number");
-  if (!user.bio || !String(user.bio).trim()) missing.push("Bio");
-  if (!Array.isArray(user.skills) || user.skills.length === 0) missing.push("Skills");
-  if (!user.experienceLevel) missing.push("Experience Level");
-  return missing;
-};
+const { getMissingProfileFields } = require("../utils/profileCompleteness");
 
 // @desc Get logged-in candidate's verification status
 // @route GET /api/verification/me

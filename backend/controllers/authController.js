@@ -3,6 +3,7 @@ const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { sendEmail } = require("../utils/email");
+const { getMissingProfileFields } = require("../utils/profileCompleteness");
 const { deleteUserWithCascade } = require("../utils/userCascade");
 
 const generateToken = (id) => {
@@ -114,6 +115,7 @@ const updateMe = asyncHandler(async (req, res) => {
     user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
     user.skills = updates.skills !== undefined ? updates.skills : user.skills;
     user.experienceLevel = updates.experienceLevel !== undefined ? updates.experienceLevel : user.experienceLevel;
+    user.education = updates.education !== undefined ? updates.education : user.education;
     user.resumeUrl = updates.resumeUrl !== undefined ? updates.resumeUrl : user.resumeUrl;
     user.portfolioLinks = updates.portfolioLinks !== undefined ? updates.portfolioLinks : user.portfolioLinks;
     user.linkedinUrl = updates.linkedinUrl !== undefined ? updates.linkedinUrl : user.linkedinUrl;
@@ -129,15 +131,27 @@ const updateMe = asyncHandler(async (req, res) => {
     user.companySize = updates.companySize !== undefined ? updates.companySize : user.companySize;
     user.website = updates.website !== undefined ? updates.website : user.website;
   } else if (user.role === "evaluator") {
-    // Evaluators can update name, bio, avatar
+    // Evaluators can update name, phone, bio, avatar
     user.name = updates.name !== undefined ? updates.name : user.name;
+    user.phone = updates.phone !== undefined ? updates.phone : user.phone;
     user.bio = updates.bio !== undefined ? updates.bio : user.bio;
     user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
   } else if (user.role === "admin") {
-    // Admins can update name, bio, avatar
+    // Admins can update name, phone, bio, avatar
     user.name = updates.name !== undefined ? updates.name : user.name;
+    user.phone = updates.phone !== undefined ? updates.phone : user.phone;
     user.bio = updates.bio !== undefined ? updates.bio : user.bio;
     user.avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : user.avatarUrl;
+  }
+
+  // Candidate profile updates must keep the profile complete (all fields + GitHub
+  // connection) before the update can be saved. Password-only updates are exempt.
+  if (user.role === "candidate" && updates.password === undefined && Object.keys(updates).length > 0) {
+    const missing = getMissingProfileFields(user);
+    if (missing.length > 0) {
+      res.status(400);
+      throw new Error(`Complete your profile before saving. Missing: ${missing.join(", ")}`);
+    }
   }
 
   const updated = await user.save();

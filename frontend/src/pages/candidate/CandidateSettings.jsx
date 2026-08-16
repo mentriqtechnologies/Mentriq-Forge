@@ -9,6 +9,7 @@ import {
   GitBranch, BadgeCheck, Clock, Send,
 } from "lucide-react";
 import { PageHeader, Card, Input, Select, Button, Avatar, Badge, StatusBadge, Modal } from "../../components/ui";
+import { getMissingProfileFields } from "../../utils/profileCompleteness";
 
 const CandidateSettings = () => {
   const { user, setUser, logout } = useAuth();
@@ -59,6 +60,7 @@ const CandidateSettings = () => {
     bio: user?.bio || "",
     skills: (user?.skills || []).join(", "),
     experienceLevel: user?.experienceLevel || "",
+    education: user?.education || "",
     resumeUrl: user?.resumeUrl || "",
     portfolioLinks: (user?.portfolioLinks || []).join(", "),
     linkedinUrl: user?.linkedinUrl || "",
@@ -97,6 +99,11 @@ const CandidateSettings = () => {
     e.preventDefault();
     setProfileError("");
     setProfileMessage("");
+    const missing = getMissingProfileFields({ ...user, ...profile });
+    if (missing.length > 0) {
+      setProfileError(`Complete all required fields to save your profile. Missing: ${missing.join(", ")}`);
+      return;
+    }
     setProfileLoading(true);
     try {
       const payload = {
@@ -281,14 +288,15 @@ const CandidateSettings = () => {
 
             <form onSubmit={handleProfileSubmit} className="space-y-5">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Input label="Full Name" icon={User} value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
-                <Input label="Phone" icon={Phone} value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
+                <Input label="Full Name" icon={User} required value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
+                <Input label="Phone" icon={Phone} required value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Bio</label>
                 <textarea
                   rows={3}
+                  required
                   value={profile.bio}
                   onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-forge-primary focus:ring-2 focus:ring-forge-primary/20"
@@ -307,13 +315,19 @@ const CandidateSettings = () => {
                     { value: "internship_seeker", label: "Internship Seeker" },
                   ]}
                   placeholder="Select..."
+                  required
                   value={profile.experienceLevel}
                   onChange={(e) => setProfile({ ...profile, experienceLevel: e.target.value })}
                 />
-                <Input label="Resume Drive Link" icon={FileText} value={profile.resumeUrl} onChange={(e) => setProfile({ ...profile, resumeUrl: e.target.value })} />
+                <Input label="Education" placeholder="e.g. B.Tech Computer Science, 2022" icon={Award} required value={profile.education} onChange={(e) => setProfile({ ...profile, education: e.target.value })} />
               </div>
 
-              <Input label="Skills (comma separated)" placeholder="React, Node.js, MongoDB" icon={Award} value={profile.skills} onChange={(e) => setProfile({ ...profile, skills: e.target.value })} />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input label="Resume Drive Link" icon={FileText} required value={profile.resumeUrl} onChange={(e) => setProfile({ ...profile, resumeUrl: e.target.value })} />
+                <Input label="LinkedIn URL" placeholder="https://linkedin.com/in/..." required value={profile.linkedinUrl} onChange={(e) => setProfile({ ...profile, linkedinUrl: e.target.value })} />
+              </div>
+
+              <Input label="Skills (comma separated)" placeholder="React, Node.js, MongoDB" icon={Award} required value={profile.skills} onChange={(e) => setProfile({ ...profile, skills: e.target.value })} />
 
               <div className="border-t border-slate-100 pt-5">
                 <h3 className="text-sm font-bold font-heading text-slate-900 mb-4 flex items-center gap-2">
@@ -321,10 +335,9 @@ const CandidateSettings = () => {
                   Social Links
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Input label="LinkedIn URL" placeholder="https://linkedin.com/in/..." value={profile.linkedinUrl} onChange={(e) => setProfile({ ...profile, linkedinUrl: e.target.value })} />
                   <Input label="GitHub URL" placeholder="https://github.com/..." value={profile.githubUrl} onChange={(e) => setProfile({ ...profile, githubUrl: e.target.value })} />
+                  <Input label="Portfolio Links (comma separated)" placeholder="Personal website, blog, etc." icon={Globe} required value={profile.portfolioLinks} onChange={(e) => setProfile({ ...profile, portfolioLinks: e.target.value })} />
                 </div>
-                <Input label="Portfolio Links (comma separated)" placeholder="Personal website, blog, etc." icon={Globe} value={profile.portfolioLinks} onChange={(e) => setProfile({ ...profile, portfolioLinks: e.target.value })} />
               </div>
 
               <Button type="submit" loading={profileLoading} icon={Save} size="lg" fullWidth>
@@ -435,6 +448,7 @@ const CandidateSettings = () => {
             <div className="flex items-center gap-3 mb-4">
               <GitBranch className="w-5 h-5 text-slate-400" />
               <h3 className="text-base font-bold font-heading text-slate-900">GitHub Connection</h3>
+              {!user?.githubUsername && <Badge color="red">Required</Badge>}
             </div>
             {user?.githubUsername ? (
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">

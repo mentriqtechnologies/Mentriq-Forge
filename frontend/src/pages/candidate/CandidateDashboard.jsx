@@ -6,9 +6,11 @@ import {
   Briefcase, FileText, CheckCircle, Clock, Award,
   ChevronDown, ChevronRight, RefreshCw, GitBranch, ExternalLink,
   BarChart3, Code2, Activity, MessageSquareQuote, BadgeCheck, XCircle,
+  ListTree,
 } from "lucide-react";
 import { PageHeader, StatCard, Card, Badge, StatusBadge, Button, EmptyState } from "../../components/ui";
 import Avatar from "../../components/ui/Avatar";
+import JourneyTimeline from "../../components/JourneyTimeline";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -151,6 +153,7 @@ const CandidateDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [expanded, setExpanded] = useState({});
+  const [journeyOpen, setJourneyOpen] = useState({});
   const [verification, setVerification] = useState(null);
 
   useEffect(() => {
@@ -164,6 +167,8 @@ const CandidateDashboard = () => {
     submissions.find((s) => s.application === appId || s.application?._id === appId);
 
   const toggleExpand = (id) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const toggleJourney = (id) => setJourneyOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <motion.div
@@ -314,9 +319,26 @@ const CandidateDashboard = () => {
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleJourney(app._id); }}
+                        className={`inline-flex items-center gap-1 p-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                          journeyOpen[app._id]
+                            ? "text-forge-primary bg-forge-primary/10"
+                            : "text-slate-400 hover:text-forge-primary hover:bg-slate-100"
+                        }`}
+                        title="Track journey"
+                      >
+                        <ListTree className="w-4 h-4" />
+                        {journeyOpen[app._id] ? "Hide" : "Journey"}
+                      </button>
                     </div>
                   </div>
                 </Card>
+                {journeyOpen[app._id] && (
+                  <div className="rounded-b-2xl border border-t-0 border-slate-200 bg-white p-5 mb-4">
+                    <JourneyTimeline history={app.statusHistory || []} highlight={app.status} />
+                  </div>
+                )}
                 {hasLinkedRepo && isExpanded && sub && (
                   <RepoAnalyticsCard submission={sub} />
                 )}

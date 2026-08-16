@@ -39,6 +39,8 @@ const Login = () => {
           ? "/company/dashboard"
           : user.role === "candidate"
           ? "/candidate/dashboard"
+          : user.role === "evaluator"
+          ? "/evaluator/dashboard"
           : "/admin/dashboard";
       navigate(path);
     } catch (err) {

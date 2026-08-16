@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }) => {
         const role = parsedUser.role;
         if (role === "company") navigate("/company/dashboard");
         else if (role === "candidate") navigate("/candidate/dashboard");
-        else if (role === "admin" || role === "evaluator") navigate("/admin/dashboard");
+        else if (role === "evaluator") navigate("/evaluator/dashboard");
+        else if (role === "admin") navigate("/admin/dashboard");
         else navigate("/");
         return;
       } catch {

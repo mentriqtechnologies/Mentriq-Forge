@@ -47,7 +47,7 @@ const EvaluatorInterviewDashboard = () => {
       if (statusFilter !== "all") params.status = statusFilter;
       if (modeFilter !== "all") params.mode = modeFilter;
       if (debouncedSearch) params.search = debouncedSearch;
-      const res = await api.get("/api/interviews", { params });
+      const res = await api.get("/interviews", { params });
       setInterviews(res.data.interviews || []);
       setTotal(res.data.total || 0);
     } catch (err) {

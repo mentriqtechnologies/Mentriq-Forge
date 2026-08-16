@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import api from "../../api/axios";
-import { useAuth } from "../../context/AuthContext";
 import {
-  PageHeader, Card, Badge, StatusBadge, Button, Input, Select,
+  PageHeader, Card, Button, Input, Select,
   Textarea,
 } from "../../components/ui";
+import { ArrowLeft, CheckCircle, ExternalLink } from "lucide-react";
 
 const InterviewForm = () => {
   const { applicationId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [form, setForm] = useState({
     mode: "online",
     date: "",
@@ -28,25 +27,15 @@ const InterviewForm = () => {
 
   useEffect(() => {
     if (!applicationId) return;
-    api.get(`/api/applications/${applicationId}`).then((res) => {
+    api.get(`/applications/${applicationId}`).then((res) => {
       const app = res.data.application;
-      setForm({
-        mode: app.applicationMode === "direct_hire" ? "offline" : "online",
+      setForm((prev) => ({
+        ...prev,
+        mode: app.project?.applicationMode === "direct_hire" ? "offline" : "online",
         date: new Date().toISOString().split("T")[0],
-        startTime: "",
-        endTime: "",
-        location: "",
-        meetingUrl: "",
-        instructions: "",
-        interviewType: "",
-      });
-    });
+      }));
+    }).catch(() => {});
   }, [applicationId]);
-
-  const [modeOptions] = React.useState([
-    { value: "online", label: "Online" },
-    { value: "offline", label: "Offline / In-Person" },
-  ]);
 
   const handleModeChange = (e) => {
     const mode = e.target.value;
@@ -59,39 +48,6 @@ const InterviewForm = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess(false);
-    setLoading(true);
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const appId = urlParams.get("applicationId") || applicationId;
-      
-      const payload = {
-        application: appId,
-        mode: form.mode,
-        date: form.date,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        location: form.location,
-        meetingUrl: form.meetingUrl,
-        instructions: form.instructions,
-        interviewType: form.interviewType,
-        interviewOwner: user.role === "company" ? "company" : "evaluator",
-      };
-
-      const res = await api.post("/api/interviews/" + appId, payload);
-      setSuccess(true);
-      setLoading(false);
-      setTimeout(() => navigate(`/evaluator/application/${appId}`), 2000);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to schedule interview");
-      setLoading(false);
-    }
-  };
-
-  // Validation based on mode
   const validateForm = () => {
     const errors = [];
     if (!form.date) errors.push("Date is required");
@@ -102,9 +58,39 @@ const InterviewForm = () => {
     return errors;
   };
 
-  if (validateForm().length > 0) {
-    setError(validateForm().join(". "));
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess(false);
+
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(". "));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        mode: form.mode,
+        date: form.date,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        location: form.location,
+        meetingUrl: form.meetingUrl,
+        instructions: form.instructions,
+        interviewType: form.interviewType,
+      };
+
+      await api.post(`/interviews/${applicationId}`, payload);
+      setSuccess(true);
+      setLoading(false);
+      setTimeout(() => navigate(`/evaluator/application/${applicationId}`), 2000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to schedule interview");
+      setLoading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -135,7 +121,7 @@ const InterviewForm = () => {
       {success && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4 flex items-center gap-3 mb-6">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          {error || "Interview scheduled successfully!"}
+          Interview scheduled successfully!
         </div>
       )}
 
@@ -143,15 +129,10 @@ const InterviewForm = () => {
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <Input
-                label="Interview Mode"
-                value={form.mode}
-                onChange={(e) => handleModeChange(e)}
-                placeholder="Select mode"
-              />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Interview Mode</label>
               <Select
                 value={form.mode}
-                onChange={(e) => handleModeChange(e)}
+                onChange={handleModeChange}
                 options={[
                   { value: "online", label: "Online" },
                   { value: "offline", label: "Offline / In-Person" },

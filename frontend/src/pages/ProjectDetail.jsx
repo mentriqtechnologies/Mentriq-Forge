@@ -6,13 +6,15 @@ import { useAuth } from "../context/AuthContext";
 import {
   Clock, Signal, Building2, CheckCircle, ArrowLeft,
   Briefcase, FileText, BookOpen, ChevronRight, Award,
-  Users,
+  Users, AlertTriangle,
 } from "lucide-react";
 import { Badge, StatusBadge, Button, Card } from "../components/ui";
+import { getMissingProfileFields } from "../utils/profileCompleteness";
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const missingProfileFields = getMissingProfileFields(user);
   const [project, setProject] = useState(null);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -230,6 +232,22 @@ return (
           )}
 
           {user?.role === "candidate" ? (
+            missingProfileFields.length > 0 ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Complete your profile to apply</p>
+                    <p className="text-xs text-amber-700 mt-0.5">Missing: {missingProfileFields.join(", ")}</p>
+                  </div>
+                </div>
+                <Link to="/profile">
+                  <Button fullWidth size="lg" variant="secondary">
+                    Complete Profile
+                  </Button>
+                </Link>
+              </div>
+            ) : (
             <Button
               onClick={handleApply}
               disabled={applying || applied || project.status !== "open"}
@@ -245,6 +263,7 @@ return (
                   ? "Participate in Normal Job"
                   : "Participate in Project Based Job"}
             </Button>
+            )
           ) : !user ? (
             <Link to="/login">
               <Button fullWidth size="lg">

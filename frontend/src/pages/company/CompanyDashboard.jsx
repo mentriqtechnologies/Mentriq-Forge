@@ -238,7 +238,7 @@ const CompanyDashboard = () => {
                     <Button
                       size="sm"
                       icon={ExternalLink}
-                      onClick={() => navigate(`/company/candidate-review/${app._id}`)}
+                      onClick={() => window.location.href = `/company/candidate-review/${app._id}`}
                       className="w-auto px-3 py-1.5 text-sm text-forge-primary hover:text-forge-primary/90 transition-colors"
                     >
                       Review

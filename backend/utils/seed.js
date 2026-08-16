@@ -66,7 +66,7 @@ const run = async () => {
   console.log("=== DEMO USERS ===");
   console.log("  🏢 Company:   company@example.com / Company@123");
   console.log("  👨‍💻 Candidate: candidate@example.com / Candidate@123\n");
-  console.log("💡 Tip: Admin/Evaluators review candidate submissions at /admin/submissions");
+  console.log("💡 Tip: Evaluators review candidate submissions at /evaluator/submissions");
   process.exit(0);
 };
 

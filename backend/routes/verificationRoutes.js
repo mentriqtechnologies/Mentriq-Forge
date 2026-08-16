@@ -12,8 +12,8 @@ const { protect, authorize } = require("../middleware/auth");
 router.get("/me", protect, authorize("candidate"), getMyVerification);
 router.post("/submit", protect, authorize("candidate"), submitVerification);
 
-// MentriQ team review (admin / evaluator)
-router.get("/candidates", protect, authorize("admin", "evaluator"), getCandidatesForReview);
-router.put("/candidates/:userId", protect, authorize("admin", "evaluator"), reviewCandidate);
+// Platform verification review (admin only - platform governance)
+router.get("/candidates", protect, authorize("admin"), getCandidatesForReview);
+router.put("/candidates/:userId", protect, authorize("admin"), reviewCandidate);
 
 module.exports = router;

@@ -19,7 +19,9 @@ export default function AuthCallback() {
 
       const role = JSON.parse(decodeURIComponent(user)).role;
 
-      if (role === "admin" || role === "evaluator") {
+      if (role === "evaluator") {
+        navigate("/evaluator/dashboard");
+      } else if (role === "admin") {
         navigate("/admin/dashboard");
       } else if (role === "company") {
         navigate("/company/dashboard");

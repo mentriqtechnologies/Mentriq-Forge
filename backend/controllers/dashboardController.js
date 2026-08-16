@@ -184,6 +184,80 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc Evaluator dashboard - evaluation workload stats
+// @route GET /api/dashboard/evaluator
+const getEvaluatorDashboard = asyncHandler(async (req, res) => {
+  const [
+    pendingSubmissions,
+    reviewedSubmissions,
+    myEvaluations,
+    avgAgg,
+    recAgg,
+    upcomingInterviews,
+    recentPending,
+  ] = await Promise.all([
+    Submission.countDocuments({ status: "pending_review" }),
+    Submission.countDocuments({ status: "reviewed" }),
+    Evaluation.countDocuments({ evaluator: req.user._id }),
+    Evaluation.aggregate([{ $group: { _id: null, avg: { $avg: "$overallScore" } } }]),
+    Evaluation.aggregate([{ $group: { _id: "$recommendation", count: { $sum: 1 } } }]),
+    Interview.find({ interviewOwner: "evaluator", status: "scheduled" })
+      .select("date startTime endTime mode interviewType application")
+      .sort({ date: 1 })
+      .limit(5),
+    Submission.find({ status: "pending_review" })
+      .populate("candidate", "name email avatarUrl experienceLevel")
+      .populate("project", "title domain")
+      .sort({ submittedAt: 1 })
+      .limit(5),
+  ]);
+
+  // Candidates the evaluator reviewed that were later officially hired by the
+  // company — the evaluator can see the outcome of their review.
+  const myReviewApps = await Evaluation.find({ evaluator: req.user._id })
+    .select("application")
+    .lean();
+  const myAppIds = myReviewApps.map((e) => e.application).filter(Boolean);
+
+  const [hiredFromMyReviews, hiredCountFromMyReviews] = await Promise.all([
+    myAppIds.length
+      ? Application.find({ _id: { $in: myAppIds }, status: "hired" })
+          .populate("candidate", "name email avatarUrl")
+          .populate({
+            path: "project",
+            select: "title jobRole applicationMode company",
+            populate: { path: "company", select: "name companyName" },
+          })
+          .sort({ updatedAt: -1 })
+          .limit(5)
+      : Promise.resolve([]),
+    myAppIds.length
+      ? Application.countDocuments({ _id: { $in: myAppIds }, status: "hired" })
+      : Promise.resolve(0),
+  ]);
+
+  const avgScore = avgAgg.length ? Number(avgAgg[0].avg.toFixed(2)) : 0;
+  const recommendations = { shortlist: 0, reject: 0, needs_upskilling: 0 };
+  recAgg.forEach((r) => {
+    if (recommendations[r._id] !== undefined) recommendations[r._id] = r.count;
+  });
+
+  res.json({
+    success: true,
+    stats: {
+      pendingSubmissions,
+      reviewedSubmissions,
+      myEvaluations,
+      avgScore,
+      hiredFromMyReviews: hiredCountFromMyReviews,
+      ...recommendations,
+    },
+    upcomingInterviews,
+    recentPending,
+    hiredFromMyReviews,
+  });
+});
+
 // @desc Get all submissions for a company's projects with GitHub analytics.
 //       Companies only receive submissions that have passed the MentriQ team review
 //       (i.e. whose application is shortlisted / interviewing / hired). Unreviewed or
@@ -228,4 +302,4 @@ const getCompanySubmissions = asyncHandler(async (req, res) => {
   res.json({ success: true, submissions: data });
 });
 
-module.exports = { getCompanyDashboard, getCandidateDashboard, getAdminDashboard, getCompanySubmissions };
+module.exports = { getCompanyDashboard, getCandidateDashboard, getAdminDashboard, getEvaluatorDashboard, getCompanySubmissions };

@@ -51,13 +51,6 @@ app.use("/api/github", require("./routes/githubRoutes"));
 app.use("/api/verification", require("./routes/verificationRoutes"));
 app.use("/api/interviews", require("./routes/interviewRoutes"));
 
-// Admin analytics available to evaluators too
-const { protect, authorize } = require("./middleware/auth");
-const { getAdminAnalytics, getHiredCandidates, getDeletedItems } = require("./controllers/adminController");
-app.get("/api/admin/analytics", protect, authorize("admin", "evaluator"), getAdminAnalytics);
-app.get("/api/admin/hired-candidates", protect, authorize("admin", "evaluator"), getHiredCandidates);
-app.get("/api/admin/deleted-items", protect, authorize("admin", "evaluator"), getDeletedItems);
-
 app.use(notFound);
 app.use(errorHandler);
 

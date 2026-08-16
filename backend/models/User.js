@@ -26,8 +26,10 @@ const userSchema = new mongoose.Schema(
         "internship_seeker",
       ],
     },
+    education: { type: String },
     resumeUrl: { type: String },
     portfolioLinks: [{ type: String }],
+    linkedinUrl: { type: String },
 
     // Company-specific fields
     companyName: { type: String },

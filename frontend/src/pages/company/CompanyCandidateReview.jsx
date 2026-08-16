@@ -6,6 +6,16 @@ import {
 } from "../../components/ui";
 import { FileText, Users, Search, CheckCircle, Clock, ExternalLink, CalendarDays, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import JourneyTimeline from "../../components/JourneyTimeline";
+
+const experienceColors = {
+  student: "blue",
+  fresher: "green",
+  professional: "purple",
+  career_switcher: "orange",
+  freelancer: "amber",
+  internship_seeker: "cyan",
+};
 
 const CompanyCandidateReview = () => {
   const { applicationId } = useParams();
@@ -41,9 +51,9 @@ const CompanyCandidateReview = () => {
   const fetchApplication = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/api/company/${applicationId}`);
+      const res = await api.get(`/applications/company/${applicationId}`);
       setApplication(res.data.application);
-      setReviewStatus(res.data.reviewStatus || "");
+      setReviewStatus(res.data.application?.status || "");
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -96,7 +106,7 @@ const CompanyCandidateReview = () => {
   const ev = application.evaluation;
   const evaluation = ev;
 
-  const applicationTypeBadge = app.applicationMode === "direct_hire" ? (
+  const applicationTypeBadge = app.project?.applicationMode === "direct_hire" ? (
     <Badge color="blue" dot>Normal Job</Badge>
   ) : (
     <Badge color="purple" dot>Project Based Job</Badge>
@@ -121,16 +131,6 @@ const CompanyCandidateReview = () => {
       ? (ev.overallScore * 10).toFixed(1)
       : "—";
 
-  const modeBadge = app.mode === "online" ? (
-    <Badge color="blue" size="sm" className="me-1">
-      <ExternalLink className="w-2.5 h-2.5 me-1" /> Online
-    </Badge>
-  ) : (
-    <Badge color="purple" size="sm" className="me-1">
-      <MapPin className="w-2.5 h-2.5 me-1" /> Offline
-    </Badge>
-  );
-
   const candidateName = app.candidate?.name || "Candidate";
   const candidateEmail = app.candidate?.email || "—";
   const githubUsername = app.candidate?.githubUsername || "—";
@@ -146,7 +146,7 @@ const CompanyCandidateReview = () => {
   const projectDeadline = app.project?.deadline ? new Date(app.project.deadline).toLocaleDateString() : "—";
   const maxCandidates = app.project?.maxCandidates || "—";
 
-  const appliedDate = app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—";
+  const appliedDate = app.createdAt ? new Date(app.createdAt).toLocaleDateString() : "—";
 
   const searchResults = skills?.some((s) =>
     s.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -157,7 +157,7 @@ const CompanyCandidateReview = () => {
     const newStatus = e.target.value;
     setReviewStatus(newStatus);
     try {
-      await api.put(`/api/company/applications/${applicationId}/review`, {
+      await api.put(`/applications/company/${applicationId}/review`, {
         reviewStatus: newStatus,
       });
     } catch (err) {
@@ -170,7 +170,7 @@ const CompanyCandidateReview = () => {
     e.preventDefault();
     const { mode, date, startTime, endTime, location, meetingUrl, interviewType, instructions } = interviewFormValues;
     try {
-      await api.post(`/api/company/applications/${applicationId}/interview`, {
+      await api.post(`/applications/company/${applicationId}/interview`, {
         mode,
         date,
         startTime,
@@ -238,7 +238,7 @@ const CompanyCandidateReview = () => {
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Experience Level</p>
-                <Badge color="professional" dot>
+                <Badge color={experienceColors[experienceLevel] || "slate"} dot>
                   {experienceLevel.replace(/_/g, " ")}
                 </Badge>
               </div>
@@ -317,7 +317,7 @@ const CompanyCandidateReview = () => {
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Application Type</p>
                 <span className="text-sm font-medium">
-                  {app.applicationMode === "direct_hire" ? "Normal Job (Direct Hire)" : "Project Based Job"}
+                  {app.project?.applicationMode === "direct_hire" ? "Normal Job (Direct Hire)" : "Project Based Job"}
                 </span>
               </div>
               <div>
@@ -339,7 +339,7 @@ const CompanyCandidateReview = () => {
                 {evaluationBadge}
                 <p className="text-xs text-slate-500 mt-1">Score: {avgScore !== "—" ? `${avgScore} / 10` : "—"}</p>
                 {evaluation.feedback && (
-                  <p className="text-xs text-slate-400 mt-1">Feedback: {evaluation.feedback.substring(0, 150)}${evaluation.feedback.length > 150 ? "..." : ""}</p>
+                  <p className="text-xs text-slate-400 mt-1">Feedback: {evaluation.feedback.substring(0, 150)}{evaluation.feedback.length > 150 ? "..." : ""}</p>
                 )}
               </div>
             ) || (
@@ -386,7 +386,7 @@ const CompanyCandidateReview = () => {
               </select>
             </div>
 
-            {app.status === "decision_pending" && (
+            {["shortlisted", "company_reviewing", "company_interview", "decision_pending", "interview_scheduled"].includes(app.status) && (
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Final Decision</p>
                 <div className="grid grid-cols-2 gap-3 mt-2">
@@ -394,7 +394,7 @@ const CompanyCandidateReview = () => {
                     type="button"
                     onClick={() => {
                       if (window.confirm("Are you sure you want to hire this candidate? This will mark the application as Hired.")) {
-                        api.put(`/api/company/applications/${applicationId}/final-decision`, { decision: "hired" })
+                        api.put(`/applications/company/${applicationId}/final-decision`, { decision: "hired" })
                           .then(() => {
                             fetchApplication();
                             alert("Candidate marked as Hired.");
@@ -410,7 +410,7 @@ const CompanyCandidateReview = () => {
                     type="button"
                     onClick={() => {
                       if (window.confirm("Are you sure you want to mark this candidate as Not Hired?")) {
-                        api.put(`/api/company/applications/${applicationId}/final-decision`, { decision: "rejected" })
+                        api.put(`/applications/company/${applicationId}/final-decision`, { decision: "rejected" })
                           .then(() => {
                             fetchApplication();
                             alert("Candidate marked as Not Hired.");
@@ -542,9 +542,12 @@ const CompanyCandidateReview = () => {
       </Card>
 
       <div className="mt-8">
-        <p className="text-sm text-slate-400">
-          {"Candidate " + (searchResults ? "matches search" : "is") + " visible to company shortlisted pipeline."}
-        </p>
+        <Card padding={false} hover={false}>
+          <div className="p-6">
+            <h2 className="text-base font-bold font-heading text-slate-900 mb-4">Candidate Journey</h2>
+            <JourneyTimeline history={app.statusHistory || []} highlight={app.status} />
+          </div>
+        </Card>
       </div>
     </motion.div>
   );

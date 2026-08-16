@@ -4,6 +4,7 @@ const Project = require("../models/Project");
 const Application = require("../models/Application");
 const Submission = require("../models/Submission");
 const Evaluation = require("../models/Evaluation");
+const Interview = require("../models/Interview");
 const { getPagination } = require("../utils/pagination");
 const { deleteUserWithCascade } = require("../utils/userCascade");
 
@@ -260,7 +261,7 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc Get hired candidates with details
+// @desc Get hired candidates with complete hiring details
 // @route GET /api/admin/hired-candidates
 const getHiredCandidates = asyncHandler(async (req, res) => {
   const { search } = req.query;
@@ -273,11 +274,11 @@ const getHiredCandidates = asyncHandler(async (req, res) => {
   }
   const [applications, total] = await Promise.all([
     Application.find(query)
-      .populate("candidate", "name email")
+      .populate("candidate", "name email skills experienceLevel")
       .populate({
         path: "project",
-        select: "title jobRole company",
-        populate: { path: "company", select: "name companyName" },
+        select: "title jobRole applicationMode company",
+        populate: { path: "company", select: "name companyName industry" },
       })
       .sort({ updatedAt: -1 })
       .skip(skip)
@@ -285,17 +286,86 @@ const getHiredCandidates = asyncHandler(async (req, res) => {
       .lean(),
     Application.countDocuments(query),
   ]);
+
+  const applicationIds = applications.map((a) => a._id);
+  const evaluations = await Evaluation.find({ application: { $in: applicationIds } })
+    .populate("evaluator", "name")
+    .lean();
+
+  const evaluationByApp = new Map();
+  evaluations.forEach((ev) => {
+    if (!evaluationByApp.has(String(ev.application))) evaluationByApp.set(String(ev.application), []);
+    evaluationByApp.get(String(ev.application)).push(ev);
+  });
+
   const data = applications.map((app) => ({
     _id: app._id,
     candidateName: app.candidate?.name || app.applicantName,
     candidateEmail: app.candidate?.email,
+    candidateSkills: app.candidate?.skills || [],
     projectTitle: app.project?.title,
     jobRole: app.project?.jobRole,
+    projectType: app.project?.applicationMode === "direct_hire" ? "job" : "project",
     companyName: app.project?.company?.companyName || app.project?.company?.name,
-    hiredAt: app.updatedAt,
+    company: app.project?.company,
+    hiredAt: getHiredAt(app),
+    hiredBy: app.statusHistory?.find((h) => h.status === "hired")?.byRole || null,
+    journey: app.statusHistory || [],
+    evaluations: (evaluationByApp.get(String(app._id)) || []).map((ev) => ({
+      _id: ev._id,
+      recommendation: ev.recommendation,
+      overallScore: ev.overallScore,
+      feedback: ev.feedback,
+      evaluatorName: ev.evaluator?.name,
+      createdAt: ev.createdAt,
+    })),
   }));
   res.json({ success: true, items: data, total, page, pages: Math.ceil(total / limit) });
 });
+
+// @desc Get full hiring record for one candidate (journey, evaluations, submission, interviews)
+// @route GET /api/admin/hired-candidates/:id
+const getHiredCandidateDetail = asyncHandler(async (req, res) => {
+  const application = await Application.findById(req.params.id)
+    .populate("candidate", "name email phone bio skills experienceLevel resumeUrl portfolioLinks githubUsername linkedinUrl")
+    .populate({
+      path: "project",
+      select: "title jobRole domain applicationMode deadline status company deliverables",
+      populate: { path: "company", select: "name companyName industry" },
+    })
+    .populate("statusHistory.by", "name role companyName");
+
+  if (!application) {
+    res.status(404);
+    throw new Error("Application not found");
+  }
+  if (application.status !== "hired") {
+    res.status(400);
+    throw new Error("This application is not hired");
+  }
+
+  const [evaluations, submission, interviews] = await Promise.all([
+    Evaluation.find({ application: application._id })
+      .populate("evaluator", "name")
+      .sort({ createdAt: -1 }),
+    Submission.findOne({ application: application._id }),
+    Interview.find({ application: application._id }).sort({ createdAt: -1 }),
+  ]);
+
+  res.json({
+    success: true,
+    application,
+    evaluations,
+    submission,
+    interviews,
+    hiredAt: getHiredAt(application),
+  });
+});
+
+const getHiredAt = (application) => {
+  const entry = (application.statusHistory || []).find((h) => h.status === "hired");
+  return entry?.at || application.updatedAt;
+};
 
 module.exports = {
   createStaffUser,
@@ -309,4 +379,5 @@ module.exports = {
   permanentDeleteItem,
   getAdminAnalytics,
   getHiredCandidates,
+  getHiredCandidateDetail,
 };

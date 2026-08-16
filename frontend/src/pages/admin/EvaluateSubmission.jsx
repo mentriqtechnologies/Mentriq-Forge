@@ -48,7 +48,7 @@ const EvaluateSubmission = () => {
     setLoading(true);
     try {
       await api.post("/evaluations", { submissionId, scores, feedback, recommendation });
-      navigate("/admin/dashboard");
+      navigate("/evaluator/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save evaluation");
     } finally {

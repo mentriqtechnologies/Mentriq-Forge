@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const Interview = require("../models/Interview");
 const Application = require("../models/Application");
 const User = require("../models/User");
+const { recordStatus } = require("./applicationController");
 
 const validateInterviewFields = (mode, data) => {
   const errors = [];
@@ -65,9 +66,7 @@ const createInterview = asyncHandler(async (req, res) => {
 
   if (applicationId) {
     // Update application status to interview_scheduled
-    await Application.findByIdAndUpdate(applicationId, {
-      status: "interview_scheduled",
-    });
+    await recordStatus(application, "interview_scheduled", req.user);
   }
 
   res.status(201).json({ success: true, interview });
@@ -220,6 +219,31 @@ const cancelInterview = asyncHandler(async (req, res) => {
   res.json({ success: true, interview });
 });
 
+// @desc Get interviews (role-scoped list)
+// - Evaluator: interviews owned by the evaluation team
+// - Company: interviews owned by the company
+// - Admin: all interviews (monitoring)
+// @route GET /api/interviews?status=...&mode=...&search=...
+const getInterviews = asyncHandler(async (req, res) => {
+  const { status, mode, search } = req.query;
+  const query = {};
+
+  if (req.user.role === "evaluator") query.interviewOwner = "evaluator";
+  else if (req.user.role === "company") query.interviewOwner = "company";
+
+  if (status && status !== "all") query.status = status;
+  if (mode && mode !== "all") query.mode = mode;
+
+  const interviews = await Interview.find(query)
+    .populate("candidate", "name email githubUsername linkedinUsername")
+    .populate("application", "project")
+    .populate("createdBy", "name")
+    .sort({ createdAt: -1 })
+    .limit(100);
+
+  res.json({ success: true, interviews });
+});
+
 // @desc Get evaluations for an interview
 // @route GET /api/interviews/:id/evaluations
 const getInterviewEvaluations = asyncHandler(async (req, res) => {
@@ -255,6 +279,7 @@ const getInterviewEvaluations = asyncHandler(async (req, res) => {
 module.exports = {
   createInterview,
   getInterview,
+  getInterviews,
   getInterviewsByApplication,
   getInterviewsByCandidate,
   updateInterview,

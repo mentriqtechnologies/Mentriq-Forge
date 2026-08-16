@@ -2,15 +2,44 @@ const asyncHandler = require("express-async-handler");
 const Application = require("../models/Application");
 const Project = require("../models/Project");
 const User = require("../models/User");
+const Evaluation = require("../models/Evaluation");
+const Interview = require("../models/Interview");
 const { getPagination } = require("../utils/pagination");
+const { getMissingProfileFields } = require("../utils/profileCompleteness");
 
 // Application statuses the MentriQ team uses to forward a profile to the company
-const FORWARDED_STATUSES = ["shortlisted", "interview_scheduled", "hired"];
+// (includes the company's own pipeline stages, which are only reachable after forwarding).
+const FORWARDED_STATUSES = [
+  "shortlisted",
+  "company_reviewing",
+  "company_interview",
+  "decision_pending",
+  "interview_scheduled",
+  "hired",
+];
+
+// Statuses a candidate can be in before the evaluator has decided on the profile.
+const EVALUATOR_REVIEW_STATUSES = ["applied", "in_progress", "submitted", "under_review"];
+
+// Central status transition helper: records every stage of the candidate's journey
+// with the acting user and role, so Admin (and every other role) can track the
+// complete history of the recruitment process.
+const recordStatus = async (application, status, user) => {
+  application.status = status;
+  application.statusHistory.push({
+    status,
+    at: new Date(),
+    by: user._id,
+    byRole: user.role,
+  });
+  await application.save();
+  return application;
+};
 
 // @desc Candidate applies / enrolls to a project
 // @route POST /api/applications
 const applyToProject = asyncHandler(async (req, res) => {
-  const { projectId } = req.body;
+  const { projectId, applicantName, mobileNumber, qualification, resumeDriveLink } = req.body;
   const candidateId = req.user._id;
 
   const project = await Project.findById(projectId).select("+deadline");
@@ -41,6 +70,13 @@ const applyToProject = asyncHandler(async (req, res) => {
     }
   }
 
+  // Profile completeness gate: candidates must complete their profile before applying
+  const missingProfile = getMissingProfileFields(req.user);
+  if (missingProfile.length > 0) {
+    res.status(400);
+    throw new Error(`Complete your profile before applying. Missing: ${missingProfile.join(", ")}`);
+  }
+
   const exists = await Application.findOne({ project: projectId, candidate: req.user._id });
   if (exists) {
     res.status(400);
@@ -64,6 +100,7 @@ const applyToProject = asyncHandler(async (req, res) => {
     qualification: qualification?.trim() || "",
     resumeDriveLink: resumeDriveLink?.trim() || "",
     status: "applied",
+    statusHistory: [{ status: "applied", at: new Date(), by: req.user._id, byRole: req.user.role }],
     startedAt: new Date(),
   });
 
@@ -171,7 +208,50 @@ const getAllApplications = asyncHandler(async (req, res) => {
   res.json({ success: true, applications, total, page, pages: Math.ceil(total / limit) });
 });
 
-// @desc Update application status (e.g., shortlist, reject, interview_scheduled, hired)
+// @desc Get a single application with full context (evaluator/admin/owning company/candidate)
+// @route GET /api/applications/:id
+const getApplicationDetail = asyncHandler(async (req, res) => {
+  const application = await Application.findById(req.params.id)
+    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel resumeUrl portfolioLinks githubUsername linkedinUrl githubProfile")
+    .populate("project", "title jobRole domain applicationMode difficulty skillsRequired deadline status maxCandidates deliverables isDirectHire")
+    .populate("project.company", "name companyName industry");
+
+  if (!application) {
+    res.status(404);
+    throw new Error("Application not found");
+  }
+
+  const role = req.user.role;
+  const isCandidateOwner = role === "candidate" && application.candidate._id.toString() === req.user._id.toString();
+  const isOwningCompany = role === "company" && application.project.company._id.toString() === req.user._id.toString();
+  if (!isCandidateOwner && !isOwningCompany && !["evaluator", "admin"].includes(role)) {
+    res.status(403);
+    throw new Error("Not authorized to view this application");
+  }
+
+  // Companies can only view approved (verified) candidates and, for project-based
+  // hiring, only profiles the MentriQ team has forwarded to them.
+  if (role === "company") {
+    if (!application.candidate.isVerified) {
+      res.status(403);
+      throw new Error("Not authorized to view this application");
+    }
+    const isDirectJob = application.project.applicationMode === "direct_hire";
+    if (!isDirectJob && !FORWARDED_STATUSES.includes(application.status)) {
+      res.status(403);
+      throw new Error("This profile is still under review by the MentriQ team");
+    }
+  }
+
+  const [evaluation, interviews] = await Promise.all([
+    Evaluation.findOne({ application: application._id }),
+    Interview.find({ application: application._id }).sort({ createdAt: -1 }),
+  ]);
+
+  res.json({ success: true, application, evaluation, interviews });
+});
+
+// @desc Update application status (role-scoped pipeline control)
 // @route PUT /api/applications/:id/status
 const updateApplicationStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
@@ -181,8 +261,11 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     "submitted",
     "under_review",
     "shortlisted",
-    "rejected",
+    "company_reviewing",
+    "company_interview",
+    "decision_pending",
     "interview_scheduled",
+    "rejected",
     "hired",
   ];
   if (!validStatuses.includes(status)) {
@@ -202,12 +285,24 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to update this application");
   }
 
-  application.status = status;
-  await application.save();
+  // Enterprise pipeline rules:
+  // - "shortlisted" is the Evaluator's forward gate (see shortlistApplication).
+  //   Companies cannot move a project-based candidate into this state themselves.
+  // - "hired" is the Company's exclusive final decision (see companyMakeFinalDecision).
+  if (req.user.role === "company" && status === "shortlisted") {
+    res.status(403);
+    throw new Error("Profiles are forwarded to the company by the evaluation team only");
+  }
+  if (status === "hired" && req.user.role !== "company") {
+    res.status(403);
+    throw new Error("Only the company can officially hire a candidate");
+  }
+
+  await recordStatus(application, status, req.user);
   res.json({ success: true, application });
 });
 
-// @desc Evaluator shortlists a candidate application
+// @desc Evaluator forwards a candidate profile to the company (project-based hiring)
 // @route POST /api/applications/:id/shortlist
 const shortlistApplication = asyncHandler(async (req, res) => {
   const applicationId = req.params.id;
@@ -236,11 +331,78 @@ const shortlistApplication = asyncHandler(async (req, res) => {
     throw new Error(`Cannot shortlist application with status "${application.status}". Application must be under review first.`);
   }
 
-  // Update status to shortlisted
-  application.status = "shortlisted";
-  await application.save();
-
+  await recordStatus(application, "shortlisted", req.user);
   res.json({ success: true, application });
+});
+
+// @desc Evaluator/Admin rejects a project-based application (terminal decision)
+// @route POST /api/applications/:id/reject
+const rejectApplication = asyncHandler(async (req, res) => {
+  const application = await Application.findById(req.params.id).populate("project");
+  if (!application) {
+    res.status(404);
+    throw new Error("Application not found");
+  }
+
+  if (["hired", "rejected"].includes(application.status)) {
+    res.status(400);
+    throw new Error(`Cannot reject application with status "${application.status}"`);
+  }
+
+  await recordStatus(application, "rejected", req.user);
+  res.json({ success: true, application });
+});
+
+// @desc Evaluator's project-based application review queue
+//       Project-based applications are reviewed by the evaluation team and only
+//       forwarded to the company once the evaluator decides the profile is suitable.
+// @route GET /api/applications/queue?stage=to_review|forwarded|decided&status=...&search=...
+const getEvaluatorApplicationQueue = asyncHandler(async (req, res) => {
+  const { stage, status, search } = req.query;
+  const { page, limit, skip } = getPagination(req.query, { defaultLimit: 20 });
+
+  const query = { applicationType: "project" };
+  if (status && status !== "all") {
+    query.status = status;
+  } else if (stage === "forwarded") {
+    query.status = { $in: FORWARDED_STATUSES };
+  } else if (stage === "decided") {
+    query.status = { $in: ["hired", "rejected"] };
+  } else {
+    query.status = { $in: EVALUATOR_REVIEW_STATUSES };
+  }
+
+  if (search) {
+    const candidates = await User.find({
+      $or: [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ],
+    })
+      .select("_id")
+      .lean();
+    const candidateIds = candidates.map((c) => c._id);
+    query.$or = [];
+    if (candidateIds.length) query.$or.push({ candidate: { $in: candidateIds } });
+    if (query.$or.length === 0) query.$or = [{ _id: null }];
+  }
+
+  const [applications, total] = await Promise.all([
+    Application.find(query)
+      .populate("candidate", "name email skills experienceLevel avatarUrl isVerified")
+      .populate({
+        path: "project",
+        select: "title jobRole domain applicationMode company",
+        populate: { path: "company", select: "name companyName industry" },
+      })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Application.countDocuments(query),
+  ]);
+
+  res.json({ success: true, applications, total, page, pages: Math.ceil(total / limit) });
 });
 
 // @desc Get shortlist for project (enhanced)
@@ -313,6 +475,20 @@ const getCompanyApplicationDetail = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to view this application");
   }
 
+  // Visibility gate: companies may only see approved (verified) candidates whose
+  // profiles the evaluation team has forwarded (project-based hiring).
+  if (req.user.role === "company") {
+    if (!application.candidate?.isVerified) {
+      res.status(403);
+      throw new Error("Not authorized to view this application");
+    }
+    const isDirectJob = application.project.applicationMode === "direct_hire";
+    if (!isDirectJob && !FORWARDED_STATUSES.includes(application.status)) {
+      res.status(403);
+      throw new Error("This profile is still under review by the evaluation team");
+    }
+  }
+
   // Get evaluation for this application
   const evaluation = await Evaluation.findOne({ application: applicationId });
 
@@ -352,10 +528,10 @@ const companyUpdateApplicationReview = asyncHandler(async (req, res) => {
   }
 
   if (reviewStatus) {
-    application.status = reviewStatus;
+    await recordStatus(application, reviewStatus, req.user);
+  } else {
+    await application.save();
   }
-
-  await application.save();
 
   res.json({ success: true, application });
 });
@@ -392,8 +568,7 @@ const companyMakeFinalDecision = asyncHandler(async (req, res) => {
   }
 
   // Apply the final decision
-  application.status = decision;
-  await application.save();
+  await recordStatus(application, decision, req.user);
 
   res.json({ success: true, application });
 });
@@ -443,8 +618,7 @@ const companyScheduleInterview = asyncHandler(async (req, res) => {
   });
 
   // Update application status to interview_scheduled
-  application.status = "interview_scheduled";
-  await application.save();
+  await recordStatus(application, "interview_scheduled", req.user);
 
   res.status(201).json({ success: true, interview, application });
 });
@@ -454,8 +628,12 @@ module.exports = {
   getMyApplications,
   getApplicationsForProject,
   getAllApplications,
+  getApplicationDetail,
+  getEvaluatorApplicationQueue,
   updateApplicationStatus,
   shortlistApplication,
+  rejectApplication,
+  recordStatus,
   getShortlistForProject,
   getCompanyShortlistedApplications,
   getCompanyApplicationDetail,

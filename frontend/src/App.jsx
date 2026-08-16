@@ -43,6 +43,7 @@ import EvaluatorInterviewDashboard from "./pages/evaluator/InterviewDashboard";
 import EvaluatorEvaluationResults from "./pages/evaluator/EvaluationResults";
 import ApplicationDetail from "./pages/evaluator/ApplicationDetail";
 import InterviewForm from "./pages/evaluator/InterviewForm";
+import ApplicationQueue from "./pages/evaluator/ApplicationQueue";
 
 const PublicLayout = ({ children }) => (
   <>
@@ -166,7 +167,7 @@ function App() {
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><AdminDashboard /></AuthLayout>
             </ProtectedRoute>
           }
@@ -174,7 +175,7 @@ function App() {
         <Route
           path="/admin/profile"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><AdminDashboard /></AuthLayout>
             </ProtectedRoute>
           }
@@ -192,6 +193,30 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["evaluator"]}>
               <AuthLayout><EvaluatorDashboard /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/applications"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><ApplicationQueue /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/submissions"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><SubmissionsManager /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluator/submissions/:submissionId/evaluate"
+          element={
+            <ProtectedRoute allowedRoles={["evaluator"]}>
+              <AuthLayout><EvaluateSubmission /></AuthLayout>
             </ProtectedRoute>
           }
         />
@@ -228,22 +253,6 @@ function App() {
           }
         />
         <Route
-          path="/admin/submissions"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
-              <AuthLayout><SubmissionsManager /></AuthLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/submissions/:submissionId/evaluate"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
-              <AuthLayout><EvaluateSubmission /></AuthLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/admin/users"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
@@ -254,7 +263,7 @@ function App() {
         <Route
           path="/admin/verifications"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><CandidateVerification /></AuthLayout>
             </ProtectedRoute>
           }
@@ -262,7 +271,7 @@ function App() {
         <Route
           path="/admin/deleted-reports"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><DeletedReports /></AuthLayout>
             </ProtectedRoute>
           }
@@ -278,7 +287,7 @@ function App() {
         <Route
           path="/admin/applications"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><ApplicationsManager /></AuthLayout>
             </ProtectedRoute>
           }
@@ -286,7 +295,7 @@ function App() {
         <Route
           path="/admin/hired-candidates"
           element={
-            <ProtectedRoute allowedRoles={["admin", "evaluator"]}>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><HiredCandidates /></AuthLayout>
             </ProtectedRoute>
           }

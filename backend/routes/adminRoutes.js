@@ -12,6 +12,7 @@ const {
   permanentDeleteItem,
   getAdminAnalytics,
   getHiredCandidates,
+  getHiredCandidateDetail,
 } = require("../controllers/adminController");
 const { protect, authorize } = require("../middleware/auth");
 
@@ -31,5 +32,6 @@ router.delete("/deleted-items/:id/permanent", permanentDeleteItem);
 
 router.get("/analytics", getAdminAnalytics);
 router.get("/hired-candidates", getHiredCandidates);
+router.get("/hired-candidates/:id", getHiredCandidateDetail);
 
 module.exports = router;

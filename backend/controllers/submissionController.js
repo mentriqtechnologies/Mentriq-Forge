@@ -4,10 +4,18 @@ const Application = require("../models/Application");
 const User = require("../models/User");
 const { cleanUrl } = require("../utils/urls");
 const { getPagination } = require("../utils/pagination");
+const { recordStatus } = require("./applicationController");
 
 // Application statuses that mean the review process has concluded favourably;
 // submissions for these are not open for re-submission.
-const FINAL_APPROVED_STATUSES = ["shortlisted", "interview_scheduled", "hired"];
+const FINAL_APPROVED_STATUSES = [
+  "shortlisted",
+  "company_reviewing",
+  "company_interview",
+  "decision_pending",
+  "interview_scheduled",
+  "hired",
+];
 
 // @desc Candidate submits work for an application
 // @route POST /api/submissions
@@ -69,9 +77,8 @@ const createSubmission = asyncHandler(async (req, res) => {
     notes: typeof notes === "string" ? notes.trim() : "",
   });
 
-  application.status = "submitted";
   application.submittedAt = new Date();
-  await application.save();
+  await recordStatus(application, "submitted", req.user);
 
   res.status(201).json({ success: true, submission });
 });

@@ -21,12 +21,25 @@ const applicationSchema = new mongoose.Schema(
         "submitted",
         "under_review",
         "shortlisted",
-        "rejected",
+        "company_reviewing",
+        "company_interview",
+        "decision_pending",
         "interview_scheduled",
+        "rejected",
         "hired",
       ],
       default: "applied",
     },
+    // Full journey of the candidate through the recruitment process.
+    // Each entry is recorded by the acting role (candidate, evaluator, company, admin).
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        at: { type: Date, default: Date.now },
+        by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        byRole: { type: String, default: "" },
+      },
+    ],
     startedAt: { type: Date },
     submittedAt: { type: Date },
   },

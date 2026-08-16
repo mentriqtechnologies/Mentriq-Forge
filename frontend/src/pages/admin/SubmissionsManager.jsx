@@ -128,7 +128,7 @@ const SubmissionsManager = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
             >
-              <Link to={`/admin/submissions/${s._id}/evaluate`} className="block group">
+              <Link to={`/evaluator/submissions/${s._id}/evaluate`} className="block group">
                 <Card hover={true} padding={false}>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4">

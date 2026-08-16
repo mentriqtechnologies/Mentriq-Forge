@@ -5,13 +5,15 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import {
   Clock, Signal, Building2, CheckCircle, ArrowLeft,
-  Briefcase, FileText, BookOpen, Award, MapPin,
+  Briefcase, FileText, BookOpen, Award, MapPin, AlertTriangle,
 } from "lucide-react";
 import { Badge, StatusBadge, Button, Card } from "../components/ui";
+import { getMissingProfileFields } from "../utils/profileCompleteness";
 
 const JobDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const missingProfileFields = getMissingProfileFields(user);
   const [project, setProject] = useState(null);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -217,6 +219,22 @@ const JobDetail = () => {
           )}
 
           {user?.role === "candidate" ? (
+            missingProfileFields.length > 0 ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Complete your profile to apply</p>
+                    <p className="text-xs text-amber-700 mt-0.5">Missing: {missingProfileFields.join(", ")}</p>
+                  </div>
+                </div>
+                <Link to="/profile">
+                  <Button fullWidth size="lg" variant="secondary">
+                    Complete Profile
+                  </Button>
+                </Link>
+              </div>
+            ) : (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Apply for this Job</p>
@@ -262,6 +280,7 @@ const JobDetail = () => {
                   : applied ? "Submitted" : applying ? "Submitting..." : "Apply Now"}
               </Button>
             </div>
+            )
           ) : !user ? (
             <Link to="/login">
               <Button fullWidth size="lg">
