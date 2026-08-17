@@ -383,6 +383,7 @@ const googleAuth = (req, res) => {
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent("openid email profile")}` +
+    `&prompt=select_account` +
     `&state=${encodeURIComponent(state)}`;
   res.redirect(url);
 };
@@ -393,15 +394,18 @@ const googleCallback = asyncHandler(async (req, res) => {
   const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
+  // Failures redirect back to the app with a readable message instead of raw JSON
+  const errorRedirect = (msg) => {
+    return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent(msg)}`);
+  };
+
   if (!googleClientId || !googleClientSecret) {
-    res.status(500);
-    throw new Error("Google OAuth is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to backend/.env before enabling Continue with Google.");
+    return errorRedirect("Google sign-in is not configured. Please try again later.");
   }
 
   const { code, state } = req.query;
   if (!code) {
-    res.status(400);
-    throw new Error("Missing authorization code");
+    return errorRedirect("Google sign-in was cancelled or failed");
   }
 
   let requestedRole = "candidate";
@@ -428,8 +432,7 @@ const googleCallback = asyncHandler(async (req, res) => {
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) {
     console.error("Google token exchange failed:", tokenData.error || tokenData.error_description || "unknown error");
-    res.status(401);
-    throw new Error("Failed to authenticate with Google");
+    return errorRedirect("Google sign-in could not be completed. Please try again.");
   }
 
   const userRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
@@ -437,22 +440,27 @@ const googleCallback = asyncHandler(async (req, res) => {
   });
   const googleUser = await userRes.json();
   if (!googleUser || !googleUser.sub) {
-    res.status(401);
-    throw new Error("Failed to fetch Google profile");
+    return errorRedirect("Could not fetch your Google profile. Please try again.");
   }
 
   // Existing account: match by Google ID, then by verified email
   let user = await User.findOne({ googleId: String(googleUser.sub) });
-  if (!user && (googleUser.email || googleUser.email_verified)) {
+  if (!user && googleUser.email) {
     user = await User.findOne(buildEmailQuery(googleUser.email));
   }
 
   if (user) {
+    if (!user.isActive) {
+      return errorRedirect("Account has been deactivated. Please contact support.");
+    }
     user.googleId = String(googleUser.sub);
     user.googleEmail = googleUser.email;
     user.googleName = googleUser.name;
     user.googlePicture = googleUser.picture;
     user.googleConnectedAt = user.googleConnectedAt || new Date();
+    if (!user.avatarUrl && googleUser.picture) {
+      user.avatarUrl = googleUser.picture;
+    }
     await user.save();
   } else {
     user = await User.create({
@@ -465,6 +473,7 @@ const googleCallback = asyncHandler(async (req, res) => {
       googleName: googleUser.name,
       googlePicture: googleUser.picture,
       googleConnectedAt: new Date(),
+      avatarUrl: googleUser.picture,
       isVerified: false,
     });
   }
