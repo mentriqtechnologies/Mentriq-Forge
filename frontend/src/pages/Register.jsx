@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Mail, Lock, User, Building2, ArrowRight, Users, Briefcase, Check } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import api from "../api/axios";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,11 +35,32 @@ const benefits = {
   ],
 };
 
+const decodeJwtPayload = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
 const Register = () => {
-  const { register } = useAuth();
+  const { register, setUser } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState("candidate");
-  const [form, setForm] = useState({ name: "", email: "", password: "", companyName: "" });
+  const [googleSignup, setGoogleSignup] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("google_signup");
+  });
+  const googleDraft = googleSignup ? decodeJwtPayload(googleSignup) : null;
+  const [role, setRole] = useState(googleDraft?.role === "company" ? "company" : "candidate");
+  const [form, setForm] = useState({
+    name: googleDraft?.name || "",
+    email: googleDraft?.email || "",
+    password: "",
+    companyName: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -48,8 +70,20 @@ const Register = () => {
     setError("");
     setLoading(true);
     try {
-      const user = await register({ ...form, role });
-      navigate(user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+      if (googleSignup) {
+        const res = await api.post("/auth/google/signup", {
+          signupToken: googleSignup,
+          role,
+          companyName: form.companyName,
+        });
+        localStorage.setItem("forge_token", res.data.token);
+        localStorage.setItem("forge_user", JSON.stringify(res.data.user));
+        setUser(res.data.user);
+        navigate(res.data.user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+      } else {
+        const user = await register({ ...form, role });
+        navigate(user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Registration failed";
       setError(msg);
@@ -72,9 +106,30 @@ const Register = () => {
               <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
               <span className="font-heading font-bold text-xl text-slate-900">MentriQ Forge</span>
             </div>
-            <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2">Create your account</h1>
-            <p className="text-slate-500">Start your journey with MentriQ Forge.</p>
+            <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2">
+              {googleSignup ? "Complete your registration" : "Create your account"}
+            </h1>
+            <p className="text-slate-500">
+              {googleSignup
+                ? "Your Google account is verified. Pick a role to finish."
+                : "Start your journey with MentriQ Forge."}
+            </p>
           </motion.div>
+
+          {googleSignup && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="status"
+              className="bg-sky-50 border border-sky-200 text-sky-700 text-sm rounded-xl p-4 mb-6 flex items-start gap-3"
+            >
+              <Mail className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+              <span>
+                No account found with <strong>{form.email}</strong>. Please create your account below to continue — you'll
+                get access based on the role you choose.
+              </span>
+            </motion.div>
+          )}
 
           <motion.div variants={itemVariants} className="flex gap-2 p-1 rounded-xl bg-slate-100 mb-6">
             {[
@@ -120,29 +175,33 @@ const Register = () => {
             </motion.div>
           )}
 
-          <motion.div variants={itemVariants} className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-4 text-xs font-medium text-slate-400">OR CONTINUE WITH</span>
-            </div>
-          </motion.div>
+          {!googleSignup && (
+            <>
+              <motion.div variants={itemVariants} className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white px-4 text-xs font-medium text-slate-400">OR CONTINUE WITH</span>
+                </div>
+              </motion.div>
 
-          <motion.a
-            variants={itemVariants}
-            href={`${(import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "")}/auth/google?role=${role}`}
-            aria-label="Continue with Google"
-            className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 mb-6"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" fill="#34A853" />
-              <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z" fill="#EA4335" />
-            </svg>
-            Continue with Google
-          </motion.a>
+              <motion.a
+                variants={itemVariants}
+                href={`${(import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "")}/auth/google?role=${role}`}
+                aria-label="Continue with Google"
+                className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 mb-6"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z" fill="#EA4335" />
+                </svg>
+                Continue with Google
+              </motion.a>
+            </>
+          )}
 
           <motion.form variants={itemVariants} onSubmit={handleSubmit} className="space-y-4">
             <Input
@@ -151,6 +210,7 @@ const Register = () => {
               icon={User}
               autoComplete="name"
               required
+              disabled={Boolean(googleSignup)}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -174,21 +234,24 @@ const Register = () => {
               icon={Mail}
               autoComplete="email"
               required
+              disabled={Boolean(googleSignup)}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Min. 6 characters"
-              icon={Lock}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+            {!googleSignup && (
+              <Input
+                label="Password"
+                type="password"
+                placeholder="Min. 6 characters"
+                icon={Lock}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            )}
 
             <label className="flex items-start gap-3 cursor-pointer">
               <input

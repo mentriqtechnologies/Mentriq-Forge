@@ -462,24 +462,88 @@ const googleCallback = asyncHandler(async (req, res) => {
       user.avatarUrl = googleUser.picture;
     }
     await user.save();
+
+    const token = generateToken(user._id);
+    return res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user.toSafeObject()))}`);
+  }
+
+  // New user: no auto-signup. Send them to the sign-up page with their Google
+  // profile in a short-lived signed token so they can pick a role and finish.
+  const signupToken = jwt.sign(
+    {
+      action: "google-signup",
+      sub: String(googleUser.sub),
+      email: googleUser.email,
+      name: googleUser.name,
+      picture: googleUser.picture,
+      role: requestedRole,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "10m" }
+  );
+  return res.redirect(`${process.env.CLIENT_URL}/register?google_signup=${encodeURIComponent(signupToken)}`);
+});
+
+// @desc Complete Google sign-up (new user picks role and finishes)
+// @route POST /api/auth/google/signup
+const googleSignup = asyncHandler(async (req, res) => {
+  const { signupToken, role, companyName } = req.body;
+
+  let draft;
+  try {
+    draft = jwt.verify(signupToken, process.env.JWT_SECRET);
+  } catch {
+    res.status(400);
+    throw new Error("Your Google sign-up link has expired. Please try again.");
+  }
+
+  if (draft.action !== "google-signup" || !draft.sub) {
+    res.status(400);
+    throw new Error("Invalid Google sign-up request. Please try again.");
+  }
+
+  const allowedRoles = ["candidate", "company"];
+  const finalRole = allowedRoles.includes(role) ? role : "candidate";
+
+  // Re-check: account may have been created in another tab between consent and the form
+  let user = await User.findOne({ googleId: String(draft.sub) });
+  if (!user && draft.email) {
+    user = await User.findOne(buildEmailQuery(draft.email));
+  }
+
+  if (user) {
+    if (!user.isActive) {
+      res.status(403);
+      throw new Error("Account has been deactivated. Please contact support.");
+    }
+    user.googleId = String(draft.sub);
+    user.googleEmail = draft.email;
+    user.googleName = draft.name;
+    user.googlePicture = draft.picture;
+    user.googleConnectedAt = user.googleConnectedAt || new Date();
+    if (!user.avatarUrl && draft.picture) {
+      user.avatarUrl = draft.picture;
+    }
+    await user.save();
   } else {
     user = await User.create({
-      name: googleUser.name || googleUser.email?.split("@")[0] || "Google User",
-      email: googleUser.email || `${googleUser.sub}@google.local`,
+      name: draft.name || draft.email?.split("@")[0] || "Google User",
+      email: draft.email || `${draft.sub}@google.local`,
       password: crypto.randomBytes(24).toString("hex"),
-      role: requestedRole,
-      googleId: String(googleUser.sub),
-      googleEmail: googleUser.email,
-      googleName: googleUser.name,
-      googlePicture: googleUser.picture,
+      role: finalRole,
+      companyName: finalRole === "company" ? companyName : undefined,
+      googleId: String(draft.sub),
+      googleEmail: draft.email,
+      googleName: draft.name,
+      googlePicture: draft.picture,
       googleConnectedAt: new Date(),
-      avatarUrl: googleUser.picture,
+      avatarUrl: draft.picture,
       isVerified: false,
     });
   }
 
   const token = generateToken(user._id);
-  res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user.toSafeObject()))}`);
+  res.json({ success: true, user: user.toSafeObject(), token });
 });
 
 // @desc Forgot password — send reset token email
@@ -565,4 +629,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, forgotPassword, resetPassword };
+module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword };

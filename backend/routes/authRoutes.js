@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, forgotPassword, resetPassword } = require("../controllers/authController");
+const { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
 router.post("/register", registerUser);
@@ -14,6 +14,7 @@ router.get("/github/link", protect, githubLink);
 router.delete("/github/link", protect, githubUnlink);
 router.get("/google", googleAuth);
 router.get("/google/callback", googleCallback);
+router.post("/google/signup", googleSignup);
 router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 
