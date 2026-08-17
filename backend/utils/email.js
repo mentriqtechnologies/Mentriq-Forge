@@ -32,7 +32,33 @@ const createTransporter = async () => {
 
 const transporterPromise = createTransporter();
 
+// HTTP API provider (e.g. Resend) — works where SMTP ports are blocked (Render free tier)
+const sendViaResend = async ({ to, subject, html }) => {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM || "MentriQ Forge <onboarding@resend.dev>",
+      to: [to],
+      subject,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Resend API error ${res.status}: ${errText}`);
+  }
+  return res.json();
+};
+
 const sendEmail = async ({ to, subject, html }) => {
+  if (process.env.RESEND_API_KEY) {
+    return sendViaResend({ to, subject, html });
+  }
+
   const mailOptions = {
     from: `"MentriQ Forge" <${process.env.SMTP_FROM || "noreply@mentriqforge.com"}>`,
     to,
