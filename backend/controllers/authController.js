@@ -590,6 +590,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     res.json({ success: true, message: "Password reset email sent" });
   } catch (err) {
+    console.error("Forgot password email failed:", err.message, err.code);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save({ validateBeforeSave: false });
