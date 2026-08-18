@@ -141,7 +141,6 @@ export const AuthProvider = ({ children }) => {
     const cred = await firebaseApi.createUser(email, password);
     try {
       await firebaseApi.updateDisplayName(cred.user, name);
-      await firebaseApi.sendVerificationEmail(cred.user);
     } catch (err) {
       await firebaseApi.signOut().catch(() => {});
       throw err;
@@ -150,15 +149,21 @@ export const AuthProvider = ({ children }) => {
     const idToken = await cred.user.getIdToken(true);
     const { user: userData } = await exchangeFirebaseToken(idToken, role, companyName, "signup");
 
+    // Send the branded activation email via the backend (custom HTML, not the
+    // default Firebase template)
+    try {
+      await api.post("/auth/send-verification-email", { email });
+    } catch (err) {
+      console.error("Activation email send failed:", err.message);
+    }
+
     await firebaseApi.signOut().catch(() => {});
     return { user: userData, needsVerification: true };
   };
 
   // Re-send the activation email for an existing (unverified) account
-  const resendVerification = async (email, password) => {
-    const cred = await firebaseApi.signInWithEmailAndPassword(email, password);
-    await firebaseApi.sendVerificationEmail(cred.user);
-    await firebaseApi.signOut().catch(() => {});
+  const resendVerification = async (email) => {
+    await api.post("/auth/send-verification-email", { email });
   };
 
   // Called from /verify-email after the user clicks the activation link in Gmail
@@ -174,22 +179,10 @@ export const AuthProvider = ({ children }) => {
     return null; // not signed in on this device — user must log in to finish
   };
 
-  // Firebase forgot password — sends the reset link email
+  // Forgot password — the backend generates the Firebase reset link and
+  // sends a branded HTML email (works for legacy users too)
   const forgotPassword = async (email) => {
-    if (!isFirebaseConfigured()) {
-      await api.post("/auth/forgot-password", { email });
-      return;
-    }
-    try {
-      await firebaseApi.sendPasswordReset(email);
-    } catch (err) {
-      if (err.code === "auth/user-not-found") {
-        // Legacy (pre-Firebase) account → fall back to the old reset mailer
-        await api.post("/auth/forgot-password", { email });
-        return;
-      }
-      throw err;
-    }
+    await api.post("/auth/forgot-password", { email });
   };
 
   // Firebase reset password using the oobCode from the reset link

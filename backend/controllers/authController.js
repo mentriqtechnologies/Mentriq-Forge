@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { sendEmail } = require("../utils/email");
+const { sendEmail, buildActionEmailHtml } = require("../utils/email");
 const { getMissingProfileFields } = require("../utils/profileCompleteness");
 const { deleteUserWithCascade } = require("../utils/userCascade");
 const { firebaseAuth: adminFirebaseAuth, verifyFirebaseToken } = require("../config/firebase");
@@ -678,7 +678,55 @@ const firebaseMigrate = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc Forgot password — send reset token email
+// @desc Send account activation (email verification) link with branded HTML
+// Called after registration or "resend activation email". The link opens the
+// frontend /verify-email page where the code is applied (handleCodeInApp).
+// @route POST /api/auth/send-verification-email
+const sendVerificationEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400);
+    throw new Error("Email is required");
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne(buildEmailQuery(normalizedEmail));
+  if (!user) {
+    res.status(404);
+    throw new Error("No account found with this email address");
+  }
+
+  if (user.isVerified) {
+    return res.json({ success: true, message: "Account is already activated" });
+  }
+
+  const link = await adminFirebaseAuth.generateEmailVerificationLink(user.email, {
+    url: `${process.env.CLIENT_URL}/verify-email`,
+    handleCodeInApp: true,
+  });
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Activate your MentriQ Forge account",
+      html: buildActionEmailHtml({
+        heading: `Welcome to MentriQ Forge, ${user.name.split(" ")[0]}!`,
+        message:
+          "Your account has been created. Click the button below to activate it — this confirms your email address and lets you sign in.",
+        buttonText: "Activate my account",
+        link,
+        expiryNote: "This activation link expires in a few hours. If it expires, request a new one from the login page.",
+      }),
+    });
+    res.json({ success: true, message: "Activation email sent" });
+  } catch (err) {
+    console.error("Verification email failed:", err.message, err.code);
+    res.status(500);
+    throw new Error("Email could not be sent");
+  }
+});
+
+// @desc Forgot password — send reset link email (Firebase + branded HTML)
 // @route POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -695,37 +743,58 @@ const forgotPassword = asyncHandler(async (req, res) => {
     throw new Error("No account found with this email address");
   }
 
-  const resetToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  if (!user.isActive) {
+    res.status(403);
+    throw new Error("Account has been deactivated. Please contact support.");
+  }
 
-  user.resetPasswordToken = hashedToken;
-  user.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
-  await user.save({ validateBeforeSave: false });
+  // Make sure the user exists in Firebase so a reset link can be generated.
+  // Legacy (pre-Firebase) accounts are provisioned on demand with a random
+  // password; they still reset via the email link.
+  let firebaseUser = null;
+  if (user.firebaseUid) {
+    firebaseUser = await adminFirebaseAuth.getUser(user.firebaseUid).catch(() => null);
+  }
+  if (!firebaseUser) {
+    try {
+      const created = await adminFirebaseAuth.createUser({
+        email: user.email,
+        password: crypto.randomBytes(24).toString("hex"),
+        displayName: user.name,
+        emailVerified: true,
+      });
+      user.firebaseUid = created.uid;
+      await user.save();
+    } catch (err) {
+      if (err.code !== "auth/email-already-exists") {
+        console.error("Forgot password Firebase provisioning failed:", err.message);
+        res.status(500);
+        throw new Error("Password reset could not be prepared. Please try again.");
+      }
+    }
+  }
 
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+  const resetLink = await adminFirebaseAuth.generatePasswordResetLink(user.email, {
+    url: `${process.env.CLIENT_URL}/reset-password`,
+    handleCodeInApp: true,
+  });
 
   try {
     await sendEmail({
       to: user.email,
-      subject: "Password Reset Request — MentriQ Forge",
-      html: `
-        <div style="max-width:600px;margin:0 auto;font-family:system-ui,sans-serif;">
-          <h2 style="color:#1e293b;">Password Reset Request</h2>
-          <p style="color:#475569;">You requested a password reset for your MentriQ Forge account.</p>
-          <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#6C63FF;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;margin:16px 0;">
-            Reset Password
-          </a>
-          <p style="color:#94a3b8;font-size:13px;">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-        </div>
-      `,
+      subject: "Reset your MentriQ Forge password",
+      html: buildActionEmailHtml({
+        heading: "Password reset request",
+        message:
+          "We received a request to reset the password for your MentriQ Forge account. Click the button below to set a new password.",
+        buttonText: "Reset my password",
+        link: resetLink,
+        expiryNote: "This reset link expires in a few hours. If you didn't request this, you can safely ignore this email.",
+      }),
     });
-
     res.json({ success: true, message: "Password reset email sent" });
   } catch (err) {
     console.error("Forgot password email failed:", err.message, err.code);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save({ validateBeforeSave: false });
     res.status(500);
     throw new Error("Email could not be sent");
   }
@@ -762,4 +831,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword, firebaseAuth, firebaseMigrate };
+module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword, firebaseAuth, firebaseMigrate, sendVerificationEmail };

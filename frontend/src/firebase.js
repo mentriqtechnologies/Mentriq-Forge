@@ -61,12 +61,12 @@ export const firebaseApi = {
   sendVerificationEmail: (user) =>
     sendEmailVerification(user, {
       url: `${window.location.origin}/verify-email`,
-      handleCodeInApp: false,
+      handleCodeInApp: true,
     }),
   sendPasswordReset: (email) =>
     sendPasswordResetEmail(getAuthInstance(), email, {
       url: `${window.location.origin}/reset-password`,
-      handleCodeInApp: false,
+      handleCodeInApp: true,
     }),
   confirmPasswordReset: (oobCode, newPassword) =>
     confirmPasswordReset(getAuthInstance(), oobCode, newPassword),

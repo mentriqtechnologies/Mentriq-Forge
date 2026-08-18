@@ -54,6 +54,33 @@ const sendViaResend = async ({ to, subject, html }) => {
   return res.json();
 };
 
+const buildActionEmailHtml = ({ heading, message, buttonText, link, expiryNote }) => {
+  const escaped = (s = "") =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return `
+    <div style="max-width:560px;margin:0 auto;font-family:Segoe UI,system-ui,-apple-system,sans-serif;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#6C63FF,#4f46e5);padding:28px 32px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:0.3px;">MentriQ Forge</span>
+        </div>
+        <div style="font-size:13px;color:#c7d2fe;margin-top:2px;">Project-based hiring platform</div>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#1e293b;font-size:20px;margin:0 0 12px;">${escaped(heading)}</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 24px;">${escaped(message)}</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${escaped(link)}" style="display:inline-block;padding:14px 32px;background:#6C63FF;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">${escaped(buttonText)}</a>
+        </div>
+        ${expiryNote ? `<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 20px;">${escaped(expiryNote)}</p>` : ""}
+        <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:16px 0 0;word-break:break-all;">If the button doesn't work, copy and paste this link into your browser:<br /><a href="${escaped(link)}" style="color:#6C63FF;">${escaped(link)}</a></p>
+      </div>
+      <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">This is an automated message from MentriQ Forge. If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    </div>
+  `;
+};
+
 const sendEmail = async ({ to, subject, html }) => {
   if (process.env.RESEND_API_KEY) {
     return sendViaResend({ to, subject, html });
@@ -87,4 +114,4 @@ const sendEmail = async ({ to, subject, html }) => {
   return info;
 };
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, buildActionEmailHtml };
