@@ -74,8 +74,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Exchange a Firebase ID token for an app session (JWT + Mongo user)
-  const exchangeFirebaseToken = async (idToken, role, companyName) => {
-    const res = await api.post("/auth/firebase", { idToken, role, companyName });
+  const exchangeFirebaseToken = async (idToken, role, companyName, intent) => {
+    const res = await api.post("/auth/firebase", { idToken, role, companyName, intent });
     return res.data;
   };
 
@@ -85,15 +85,17 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
-  // Firebase Google sign-in (popup). Works for login and signup.
-  const loginWithGoogle = async (role = "candidate", companyName) => {
+  // Firebase Google sign-in (popup).
+  // On the login page → intent "login": account must already exist, else error.
+  // On the register page → intent "signup": new account is created with the chosen role.
+  const loginWithGoogle = async (role = "candidate", companyName, { signup = false } = {}) => {
     if (!isFirebaseConfigured()) {
       window.location.href = `${(import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "")}/auth/google`;
       return null;
     }
     const cred = await firebaseApi.signInWithGoogle();
     const idToken = await cred.user.getIdToken(true);
-    const { user: userData, token } = await exchangeFirebaseToken(idToken, role, companyName);
+    const { user: userData, token } = await exchangeFirebaseToken(idToken, role, companyName, signup ? "signup" : "login");
     return persist(userData, token);
   };
 
@@ -117,7 +119,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     const idToken = await cred.user.getIdToken(true);
-    const { user: userData, token } = await exchangeFirebaseToken(idToken);
+    const { user: userData, token } = await exchangeFirebaseToken(idToken, undefined, undefined, "login");
 
     if (!userData.isVerified) {
       await firebaseApi.signOut().catch(() => {});
@@ -146,7 +148,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     const idToken = await cred.user.getIdToken(true);
-    const { user: userData } = await exchangeFirebaseToken(idToken, role, companyName);
+    const { user: userData } = await exchangeFirebaseToken(idToken, role, companyName, "signup");
 
     await firebaseApi.signOut().catch(() => {});
     return { user: userData, needsVerification: true };

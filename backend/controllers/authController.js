@@ -549,10 +549,12 @@ const googleSignup = asyncHandler(async (req, res) => {
 
 // @desc Firebase Auth — exchange a Firebase ID token for a session
 // Called after Google sign-in, email/password sign-in or email verification.
-// Finds or creates the Mongo user and keeps verification status in sync.
+// Finds the Mongo user and keeps verification status in sync.
+// intent = "login"  → account MUST already exist (no auto-create)
+// intent = "signup" → new users are created (register page Google sign-in)
 // @route POST /api/auth/firebase
 const firebaseAuth = asyncHandler(async (req, res) => {
-  const { idToken, role, companyName } = req.body;
+  const { idToken, role, companyName, intent = "login" } = req.body;
   if (!idToken) {
     res.status(400);
     throw new Error("idToken is required");
@@ -577,6 +579,11 @@ const firebaseAuth = asyncHandler(async (req, res) => {
   }
 
   if (!user) {
+    // Logging in with an account that was never registered on the platform
+    if (intent !== "signup") {
+      res.status(404);
+      throw new Error("No account found. Please create an account first before logging in.");
+    }
     const allowedRoles = ["candidate", "company"];
     const finalRole = allowedRoles.includes(role) ? role : "candidate";
     user = await User.create({

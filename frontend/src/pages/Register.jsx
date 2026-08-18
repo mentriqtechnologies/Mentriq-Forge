@@ -83,7 +83,7 @@ const Register = () => {
     setError("");
     setGoogleLoading(true);
     try {
-      const user = await loginWithGoogle(role, form.companyName);
+      const user = await loginWithGoogle(role, form.companyName, { signup: true });
       navigate(getRolePath(user.role));
     } catch (err) {
       if (err.code === "auth/popup-closed-by-user") {
@@ -91,7 +91,7 @@ const Register = () => {
       } else if (err.code === "auth/unauthorized-domain") {
         setError("Google sign-in domain is not authorized. Add your domain in Firebase Console → Authentication → Settings.");
       } else {
-        setError(err.message || "Google sign-in failed. Please try again.");
+        setError(err.response?.data?.message || err.message || "Google sign-in failed. Please try again.");
       }
     } finally {
       setGoogleLoading(false);

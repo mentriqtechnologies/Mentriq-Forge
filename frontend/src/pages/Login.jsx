@@ -78,12 +78,14 @@ const Login = () => {
       const user = await loginWithGoogle();
       navigate(getRolePath(user.role));
     } catch (err) {
-      if (err.code === "auth/popup-closed-by-user") {
+      if (err.response?.status === 404) {
+        setError("No account found with this Google account. Please create an account first.");
+      } else if (err.code === "auth/popup-closed-by-user") {
         setError("Google sign-in was cancelled");
       } else if (err.code === "auth/unauthorized-domain") {
         setError("Google sign-in domain is not authorized. Add your domain in Firebase Console → Authentication → Settings.");
       } else {
-        setError(err.message || "Google sign-in failed. Please try again.");
+        setError(err.response?.data?.message || err.message || "Google sign-in failed. Please try again.");
       }
     } finally {
       setGoogleLoading(false);
