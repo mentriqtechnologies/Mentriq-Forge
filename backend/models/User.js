@@ -59,6 +59,9 @@ const userSchema = new mongoose.Schema(
     googlePicture: { type: String },
     googleConnectedAt: { type: Date },
 
+    // Firebase Auth (optional — set when the account was created/signed in via Firebase)
+    firebaseUid: { type: String, unique: true, sparse: true },
+
     // Common
     phone: { type: String },
     bio: { type: String },

@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import Projects from "./pages/Projects";
 import ProjectRouter from "./pages/ProjectRouter";
 import Profile from "./pages/Profile";
@@ -67,7 +68,9 @@ function App() {
         <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
         <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
         <Route path="/forgot-password" element={<PublicLayout><ForgotPassword /></PublicLayout>} />
+        <Route path="/reset-password" element={<PublicLayout><ResetPassword /></PublicLayout>} />
         <Route path="/reset-password/:token" element={<PublicLayout><ResetPassword /></PublicLayout>} />
+        <Route path="/verify-email" element={<PublicLayout><VerifyEmail /></PublicLayout>} />
         <Route path="/privacy-policy" element={<PublicLayout><PrivacyPolicy /></PublicLayout>} />
         <Route path="/terms-of-service" element={<PublicLayout><TermsOfService /></PublicLayout>} />
         <Route path="/projects" element={<PublicLayout><Projects /></PublicLayout>} />

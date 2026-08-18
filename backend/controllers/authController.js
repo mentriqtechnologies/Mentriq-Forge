@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { sendEmail } = require("../utils/email");
 const { getMissingProfileFields } = require("../utils/profileCompleteness");
 const { deleteUserWithCascade } = require("../utils/userCascade");
+const { firebaseAuth: adminFirebaseAuth, verifyFirebaseToken } = require("../config/firebase");
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -546,6 +547,130 @@ const googleSignup = asyncHandler(async (req, res) => {
   res.json({ success: true, user: user.toSafeObject(), token });
 });
 
+// @desc Firebase Auth — exchange a Firebase ID token for a session
+// Called after Google sign-in, email/password sign-in or email verification.
+// Finds or creates the Mongo user and keeps verification status in sync.
+// @route POST /api/auth/firebase
+const firebaseAuth = asyncHandler(async (req, res) => {
+  const { idToken, role, companyName } = req.body;
+  if (!idToken) {
+    res.status(400);
+    throw new Error("idToken is required");
+  }
+
+  let claims;
+  try {
+    claims = await verifyFirebaseToken(idToken);
+  } catch {
+    res.status(401);
+    throw new Error("Invalid or expired Firebase token");
+  }
+
+  const firebaseUid = claims.uid;
+  const email = (claims.email || "").toLowerCase().trim();
+  const provider = claims.firebase?.sign_in_provider || "";
+  const isGoogle = provider === "google.com";
+
+  let user = await User.findOne({ firebaseUid });
+  if (!user && email) {
+    user = await User.findOne(buildEmailQuery(email));
+  }
+
+  if (!user) {
+    const allowedRoles = ["candidate", "company"];
+    const finalRole = allowedRoles.includes(role) ? role : "candidate";
+    user = await User.create({
+      name: claims.name || email.split("@")[0] || "New User",
+      email: email || `${firebaseUid}@firebase.local`,
+      password: crypto.randomBytes(24).toString("hex"),
+      role: finalRole,
+      companyName: finalRole === "company" ? companyName : undefined,
+      firebaseUid,
+      googleId: isGoogle ? claims.uid : undefined,
+      googleEmail: isGoogle ? email : undefined,
+      googleName: isGoogle ? claims.name : undefined,
+      googlePicture: isGoogle ? claims.picture : undefined,
+      googleConnectedAt: isGoogle ? new Date() : undefined,
+      avatarUrl: claims.picture || undefined,
+      isVerified: Boolean(claims.email_verified),
+    });
+  } else {
+    if (!user.isActive) {
+      res.status(403);
+      throw new Error("Account has been deactivated. Please contact support.");
+    }
+    // Link the Firebase account if it isn't linked yet (e.g. legacy users logging in)
+    if (!user.firebaseUid) user.firebaseUid = firebaseUid;
+    if (isGoogle && !user.googleId) {
+      user.googleId = claims.uid;
+      user.googleEmail = email;
+      user.googleName = claims.name;
+      user.googlePicture = claims.picture;
+      user.googleConnectedAt = new Date();
+    }
+    // Sync email verification status (activation from the Gmail link)
+    if (!user.isVerified && claims.email_verified) {
+      user.isVerified = true;
+    }
+    if (claims.picture && !user.avatarUrl) {
+      user.avatarUrl = claims.picture;
+    }
+    await user.save();
+  }
+
+  res.json({
+    success: true,
+    user: user.toSafeObject(),
+    token: generateToken(user._id),
+  });
+});
+
+// @desc Migrate a legacy (pre-Firebase) email/password user into Firebase Auth
+// Called by the frontend when Firebase says "user not found" but the
+// credentials are valid against the Mongo user — so old accounts can still
+// use Firebase features (verification, password reset).
+// @route POST /api/auth/firebase/migrate
+const firebaseMigrate = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const normalizedEmail = normalizeEmail(email);
+
+  const user = await User.findOne(buildEmailQuery(normalizedEmail)).select("+password");
+  if (!user || !(await user.matchPassword(password))) {
+    res.status(401);
+    throw new Error("Invalid email or password");
+  }
+  if (!user.isActive) {
+    res.status(403);
+    throw new Error("Account has been deactivated");
+  }
+
+  if (!user.firebaseUid) {
+    try {
+      const firebaseUser = await adminFirebaseAuth.createUser({
+        email: user.email,
+        password,
+        displayName: user.name,
+        emailVerified: true, // legacy accounts were already verified
+      });
+      user.firebaseUid = firebaseUser.uid;
+      await user.save();
+    } catch (err) {
+      // Account may already exist in Firebase (e.g. created from another device)
+      if (err.code !== "auth/email-already-exists") {
+        console.error("Firebase migration failed:", err.message);
+        res.status(500);
+        throw new Error("Account could not be migrated to Firebase. Please try again.");
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    user: user.toSafeObject(),
+    token: generateToken(user._id),
+  });
+});
+
 // @desc Forgot password — send reset token email
 // @route POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
@@ -630,4 +755,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword };
+module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword, firebaseAuth, firebaseMigrate };

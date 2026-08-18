@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, User, Building2, ArrowRight, Users, Briefcase, Check } from "lucide-react";
+import { Mail, Lock, User, Building2, ArrowRight, Users, Briefcase, Check, Send } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import api from "../api/axios";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,60 +34,67 @@ const benefits = {
   ],
 };
 
-const decodeJwtPayload = (token) => {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-};
+const getRolePath = (role) => (role === "company" ? "/company/dashboard" : "/candidate/dashboard");
 
 const Register = () => {
-  const { register, setUser } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
-  const [googleSignup, setGoogleSignup] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("google_signup");
-  });
-  const googleDraft = googleSignup ? decodeJwtPayload(googleSignup) : null;
-  const [role, setRole] = useState(googleDraft?.role === "company" ? "company" : "candidate");
-  const [form, setForm] = useState({
-    name: googleDraft?.name || "",
-    email: googleDraft?.email || "",
-    password: "",
-    companyName: "",
-  });
+  const [role, setRole] = useState("candidate");
+  const [form, setForm] = useState({ name: "", email: "", password: "", companyName: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      if (googleSignup) {
-        const res = await api.post("/auth/google/signup", {
-          signupToken: googleSignup,
-          role,
-          companyName: form.companyName,
-        });
-        localStorage.setItem("forge_token", res.data.token);
-        localStorage.setItem("forge_user", JSON.stringify(res.data.user));
-        setUser(res.data.user);
-        navigate(res.data.user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+      const result = await register({
+        name: form.name,
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        role,
+        companyName: form.companyName,
+      });
+      if (result && result.needsVerification) {
+        setRegisteredEmail(form.email.trim().toLowerCase());
       } else {
-        const user = await register({ ...form, role });
-        navigate(user.role === "company" ? "/company/dashboard" : "/candidate/dashboard");
+        navigate(getRolePath(result?.role || role));
       }
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Registration failed";
+      const msg =
+        err.code === "auth/email-already-in-use"
+          ? "An account already exists with this email. Please log in instead."
+          : err.code === "auth/weak-password"
+          ? "Password is too weak. Use at least 6 characters."
+          : err.code === "auth/invalid-email"
+          ? "Please enter a valid email address."
+          : err.response?.data?.message || err.message || "Registration failed";
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle(role, form.companyName);
+      navigate(getRolePath(user.role));
+    } catch (err) {
+      if (err.code === "auth/popup-closed-by-user") {
+        setError("Google sign-in was cancelled");
+      } else if (err.code === "auth/unauthorized-domain") {
+        setError("Google sign-in domain is not authorized. Add your domain in Firebase Console → Authentication → Settings.");
+      } else {
+        setError(err.message || "Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -101,82 +107,93 @@ const Register = () => {
         className="flex-1 flex items-center justify-center px-6 py-12"
       >
         <div className="w-full max-w-sm">
-          <motion.div variants={itemVariants} className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
-              <span className="font-heading font-bold text-xl text-slate-900">MentriQ Forge</span>
-            </div>
-            <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2">
-              {googleSignup ? "Complete your registration" : "Create your account"}
-            </h1>
-            <p className="text-slate-500">
-              {googleSignup
-                ? "Your Google account is verified. Pick a role to finish."
-                : "Start your journey with MentriQ Forge."}
-            </p>
-          </motion.div>
-
-          {googleSignup && (
+          {registeredEmail ? (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               role="status"
-              className="bg-sky-50 border border-sky-200 text-sky-700 text-sm rounded-xl p-4 mb-6 flex items-start gap-3"
+              className="text-center"
             >
-              <Mail className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
-              <span>
-                No account found with <strong>{form.email}</strong>. Please create your account below to continue — you'll
-                get access based on the role you choose.
-              </span>
-            </motion.div>
-          )}
-
-          <motion.div variants={itemVariants} className="flex gap-2 p-1 rounded-xl bg-slate-100 mb-6">
-            {[
-              { value: "candidate", label: "Candidate", icon: Users },
-              { value: "company", label: "Company", icon: Building2 },
-            ].map((r) => {
-              const Icon = r.icon;
-              const isActive = role === r.value;
-              return (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRole(r.value)}
-                  aria-pressed={isActive}
-                  aria-label={`Register as ${r.label}`}
-                  className={`
-                    flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold capitalize
-                    transition-all duration-200
-                    ${isActive
-                      ? "bg-white text-forge-primary shadow-subtle"
-                      : "text-slate-500 hover:text-slate-700"
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  {r.label}
-                </button>
-              );
-            })}
-          </motion.div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              role="alert"
-              className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6 flex items-center gap-3"
-            >
-              <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                <Lock className="w-4 h-4 text-red-600" aria-hidden="true" />
+              <div className="flex items-center gap-3 justify-center mb-6">
+                <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
+                <span className="font-heading font-bold text-xl text-slate-900">MentriQ Forge</span>
               </div>
-              {error}
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl p-8 mb-6">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                  <Send className="w-7 h-7 text-emerald-600" aria-hidden="true" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Activate your account</h2>
+                <p className="text-sm text-emerald-700 leading-relaxed">
+                  We've sent an <strong>activation link</strong> to{" "}
+                  <strong className="break-all">{registeredEmail}</strong>.
+                  <br />
+                  <br />
+                  Click the link in that email to activate your account, then sign in.
+                </p>
+                <p className="text-xs text-emerald-600 mt-4">
+                  Didn't get the email? Check your spam folder, or try signing in — the link will be re-sent if your
+                  account is not active yet.
+                </p>
+              </div>
+              <Button onClick={() => navigate("/login")} fullWidth size="lg">
+                Go to Login
+              </Button>
             </motion.div>
-          )}
-
-          {!googleSignup && (
+          ) : (
             <>
+              <motion.div variants={itemVariants} className="mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
+                  <span className="font-heading font-bold text-xl text-slate-900">MentriQ Forge</span>
+                </div>
+                <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2">Create your account</h1>
+                <p className="text-slate-500">Start your journey with MentriQ Forge.</p>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="flex gap-2 p-1 rounded-xl bg-slate-100 mb-6">
+                {[
+                  { value: "candidate", label: "Candidate", icon: Users },
+                  { value: "company", label: "Company", icon: Building2 },
+                ].map((r) => {
+                  const Icon = r.icon;
+                  const isActive = role === r.value;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setRole(r.value)}
+                      aria-pressed={isActive}
+                      aria-label={`Register as ${r.label}`}
+                      className={`
+                        flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold capitalize
+                        transition-all duration-200
+                        ${isActive
+                          ? "bg-white text-forge-primary shadow-subtle"
+                          : "text-slate-500 hover:text-slate-700"
+                        }
+                      `}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </motion.div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  role="alert"
+                  className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 mb-6 flex items-center gap-3"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <Lock className="w-4 h-4 text-red-600" aria-hidden="true" />
+                  </div>
+                  {error}
+                </motion.div>
+              )}
+
               <motion.div variants={itemVariants} className="relative my-8">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-200" />
@@ -186,11 +203,13 @@ const Register = () => {
                 </div>
               </motion.div>
 
-              <motion.a
+              <motion.button
                 variants={itemVariants}
-                href={`${(import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "")}/auth/google?role=${role}`}
+                type="button"
+                onClick={handleGoogle}
+                disabled={googleLoading}
                 aria-label="Continue with Google"
-                className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 mb-6"
+                className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 mb-6 disabled:opacity-60"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
@@ -198,98 +217,94 @@ const Register = () => {
                   <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" fill="#FBBC05" />
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z" fill="#EA4335" />
                 </svg>
-                Continue with Google
-              </motion.a>
+                {googleLoading ? "Signing in..." : "Continue with Google"}
+              </motion.button>
+
+              <motion.form variants={itemVariants} onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  label="Full name"
+                  placeholder="John Doe"
+                  icon={User}
+                  autoComplete="name"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+
+                {role === "company" && (
+                  <Input
+                    label="Company name"
+                    placeholder="Acme Inc."
+                    icon={Building2}
+                    autoComplete="organization"
+                    required
+                    value={form.companyName}
+                    onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                  />
+                )}
+
+                <Input
+                  label="Email address"
+                  type="email"
+                  placeholder="you@company.com"
+                  icon={Mail}
+                  autoComplete="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="Min. 6 characters"
+                  icon={Lock}
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(e) => setAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-forge-primary focus:ring-forge-primary/30 shrink-0"
+                  />
+                  <span className="text-xs text-slate-500 leading-relaxed">
+                    I have read and agree to the{" "}
+                    <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
+                      Privacy Policy
+                    </Link>.
+                  </span>
+                </label>
+
+                <Button type="submit" fullWidth loading={loading} icon={ArrowRight} size="lg" disabled={!accepted}>
+                  Create Account
+                </Button>
+              </motion.form>
+
+              <motion.p variants={itemVariants} className="text-center text-xs text-slate-400 mt-4">
+                By continuing, you agree to MentriQ Forge's{" "}
+                <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Terms of Service</Link>{" "}
+                and{" "}
+                <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Privacy Policy</Link>.
+              </motion.p>
+
+              <motion.p variants={itemVariants} className="text-sm text-slate-500 mt-8 text-center">
+                Already have an account?{" "}
+                <Link to="/login" className="text-forge-primary hover:text-forge-primary-dark font-semibold">
+                  Sign in
+                </Link>
+              </motion.p>
             </>
           )}
-
-          <motion.form variants={itemVariants} onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Full name"
-              placeholder="John Doe"
-              icon={User}
-              autoComplete="name"
-              required
-              disabled={Boolean(googleSignup)}
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-
-            {role === "company" && (
-              <Input
-                label="Company name"
-                placeholder="Acme Inc."
-                icon={Building2}
-                autoComplete="organization"
-                required
-                value={form.companyName}
-                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-              />
-            )}
-
-            <Input
-              label="Email address"
-              type="email"
-              placeholder="you@company.com"
-              icon={Mail}
-              autoComplete="email"
-              required
-              disabled={Boolean(googleSignup)}
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-
-            {!googleSignup && (
-              <Input
-                label="Password"
-                type="password"
-                placeholder="Min. 6 characters"
-                icon={Lock}
-                autoComplete="new-password"
-                required
-                minLength={6}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            )}
-
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-forge-primary focus:ring-forge-primary/30 shrink-0"
-              />
-              <span className="text-xs text-slate-500 leading-relaxed">
-                I have read and agree to the{" "}
-                <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">
-                  Privacy Policy
-                </Link>.
-              </span>
-            </label>
-
-            <Button type="submit" fullWidth loading={loading} icon={ArrowRight} size="lg" disabled={!accepted}>
-              Create Account
-            </Button>
-          </motion.form>
-
-          <motion.p variants={itemVariants} className="text-center text-xs text-slate-400 mt-4">
-            By continuing, you agree to MentriQ Forge's{" "}
-            <Link to="/terms-of-service" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Terms of Service</Link>{" "}
-            and{" "}
-            <Link to="/privacy-policy" className="text-forge-primary hover:text-forge-primary-dark font-medium underline underline-offset-2">Privacy Policy</Link>.
-          </motion.p>
-
-          <motion.p variants={itemVariants} className="text-sm text-slate-500 mt-8 text-center">
-            Already have an account?{" "}
-            <Link to="/login" className="text-forge-primary hover:text-forge-primary-dark font-semibold">
-              Sign in
-            </Link>
-          </motion.p>
         </div>
       </motion.div>
 

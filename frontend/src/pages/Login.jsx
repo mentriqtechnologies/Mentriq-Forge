@@ -19,35 +19,85 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
+const getRolePath = (role) => {
+  if (role === "company") return "/company/dashboard";
+  if (role === "candidate") return "/candidate/dashboard";
+  if (role === "evaluator") return "/evaluator/dashboard";
+  if (role === "admin") return "/admin/dashboard";
+  return "/";
+};
+
 const Login = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("error") ? decodeURIComponent(params.get("error")) : "";
   });
+  const [notVerified, setNotVerified] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [resent, setResent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNotVerified(false);
+    setResent(false);
     setLoading(true);
     try {
       const normalizedEmail = form.email.trim().toLowerCase();
       const user = await login(normalizedEmail, form.password);
-      const path =
-        user.role === "company"
-          ? "/company/dashboard"
-          : user.role === "candidate"
-          ? "/candidate/dashboard"
-          : user.role === "evaluator"
-          ? "/evaluator/dashboard"
-          : "/admin/dashboard";
-      navigate(path);
+      navigate(getRolePath(user.role));
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password");
+      if (err.code === "ACCOUNT_NOT_VERIFIED") {
+        setNotVerified(true);
+        setError(err.message);
+      } else {
+        setError(
+          err.response?.data?.message ||
+            (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
+              ? "Invalid email or password"
+              : err.code === "auth/invalid-email"
+              ? "Please enter a valid email address"
+              : "Invalid email or password")
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError("");
+    setNotVerified(false);
+    setGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle();
+      navigate(getRolePath(user.role));
+    } catch (err) {
+      if (err.code === "auth/popup-closed-by-user") {
+        setError("Google sign-in was cancelled");
+      } else if (err.code === "auth/unauthorized-domain") {
+        setError("Google sign-in domain is not authorized. Add your domain in Firebase Console → Authentication → Settings.");
+      } else {
+        setError(err.message || "Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResent(false);
+    setLoading(true);
+    try {
+      await resendVerification(form.email.trim().toLowerCase(), form.password);
+      setResent(true);
+    } catch (err) {
+      setError(err.message || "Could not resend the activation email");
     } finally {
       setLoading(false);
     }
@@ -84,7 +134,25 @@ const Login = () => {
               <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
                 <Lock className="w-4 h-4 text-red-600" aria-hidden="true" />
               </div>
-              {error}
+              <div className="flex-1">
+                {error}
+                {notVerified && (
+                  <div className="mt-2">
+                    {resent ? (
+                      <p className="text-emerald-600 font-medium">Activation email re-sent. Check your inbox (and spam).</p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={loading}
+                        className="font-semibold text-forge-primary hover:text-forge-primary-dark underline underline-offset-2 disabled:opacity-50"
+                      >
+                        {loading ? "Sending..." : "Resend activation email"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -158,10 +226,12 @@ const Login = () => {
           </motion.p>
 
           <motion.div variants={itemVariants} className="space-y-3">
-            <a
-              href={`${apiBaseUrl.replace(/\/$/, "")}/auth/google`}
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={googleLoading}
               aria-label="Continue with Google"
-              className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+              className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 disabled:opacity-60"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
@@ -169,8 +239,8 @@ const Login = () => {
                 <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z" fill="#EA4335" />
               </svg>
-              Continue with Google
-            </a>
+              {googleLoading ? "Signing in..." : "Continue with Google"}
+            </button>
             <a
               href={githubAuthUrl}
               className="flex items-center justify-center gap-3 w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Mail, ArrowLeft, Lock } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -20,6 +20,7 @@ const itemVariants = {
 };
 
 const ForgotPassword = () => {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,10 +31,14 @@ const ForgotPassword = () => {
     setError("");
     setLoading(true);
     try {
-      await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
+      await forgotPassword(email.trim().toLowerCase());
       setSent(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      setError(
+        err.code === "auth/invalid-email"
+          ? "Please enter a valid email address"
+          : err.response?.data?.message || "Something went wrong"
+      );
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { Lock, ArrowLeft, CheckCircle } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -20,8 +21,11 @@ const itemVariants = {
 };
 
 const ResetPassword = () => {
-  const { token } = useParams();
+  const { token: legacyToken } = useParams();
   const navigate = useNavigate();
+  const { resetPassword } = useAuth();
+  // Firebase reset links come with ?mode=resetPassword&oobCode=...&apiKey=...
+  const oobCode = new URLSearchParams(window.location.search).get("oobCode");
   const [form, setForm] = useState({ password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,11 +47,25 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      await api.put(`/auth/reset-password/${token}`, { password: form.password });
+      if (oobCode) {
+        // Firebase flow — link from the reset email
+        await resetPassword(oobCode, form.password);
+      } else if (legacyToken) {
+        // Backwards compatible with the old reset links
+        await api.put(`/auth/reset-password/${legacyToken}`, { password: form.password });
+      } else {
+        setError("Invalid or expired reset link");
+        setLoading(false);
+        return;
+      }
       setSuccess(true);
       setTimeout(() => navigate("/login"), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid or expired reset token");
+      setError(
+        err.code === "auth/expired-action-code" || err.code === "auth/invalid-action-code"
+          ? "This reset link has expired or is invalid. Please request a new one."
+          : err.response?.data?.message || "Invalid or expired reset link"
+      );
     } finally {
       setLoading(false);
     }
