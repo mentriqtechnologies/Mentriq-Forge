@@ -35,7 +35,9 @@ const ForgotPassword = () => {
       setSent(true);
     } catch (err) {
       setError(
-        err.code === "auth/invalid-email"
+        err.code === "auth/user-not-found"
+          ? err.message || "No account found with this email address"
+          : err.code === "auth/invalid-email"
           ? "Please enter a valid email address"
           : err.response?.data?.message || "Something went wrong"
       );

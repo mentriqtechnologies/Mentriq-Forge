@@ -96,10 +96,10 @@ const Login = () => {
     setResent(false);
     setLoading(true);
     try {
-      await resendVerification(form.email.trim().toLowerCase());
+      await resendVerification(form.email.trim().toLowerCase(), form.password);
       setResent(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Could not resend the activation email");
+      setError(err.response?.data?.message || err.message || "Could not resend the activation email");
     } finally {
       setLoading(false);
     }
