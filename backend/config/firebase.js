@@ -9,18 +9,31 @@ const getServiceAccount = () => {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
   }
-  const serviceAccountPath =
-    process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-    path.join(__dirname, "..", "mentriq-up-firebase-adminsdk-fbsvc-bf13ed697f.json");
-  return serviceAccountPath;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+    return process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  }
+  const defaultPath = path.join(__dirname, "..", "mentriq-up-firebase-adminsdk-fbsvc-bf13ed697f.json");
+  if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+    // The admin SDK JSON file is gitignored and does not exist on Render —
+    // production must provide FIREBASE_SERVICE_ACCOUNT_JSON.
+    return null;
+  }
+  return defaultPath;
 };
 
 let firebaseApp;
 try {
   firebaseApp = admin.getApp();
 } catch {
+  const serviceAccount = getServiceAccount();
+  if (!serviceAccount) {
+    throw new Error(
+      "Firebase Admin credentials missing. Set FIREBASE_SERVICE_ACCOUNT_JSON in the environment " +
+        "(full content of the service account JSON) or place the admin SDK JSON file in backend/."
+    );
+  }
   firebaseApp = admin.initializeApp({
-    credential: admin.cert(getServiceAccount()),
+    credential: admin.cert(serviceAccount),
   });
 }
 
