@@ -45,7 +45,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
   }
 
   const [users, total] = await Promise.all([
-User.find(query)
+    User.find(query)
       .select("-password -resetPasswordToken -resetPasswordExpire")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -224,6 +224,7 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
   const [
     totalCompanies,
     totalActiveCompanies,
+    totalUsers,
     totalJobs,
     totalProjects,
     totalDeletedJobs,
@@ -235,6 +236,7 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     User.countDocuments({ role: "company" }),
     User.countDocuments({ role: "company", isActive: true }),
+    User.countDocuments(),
     Project.countDocuments({ applicationMode: "direct_hire" }),
     Project.countDocuments({ applicationMode: "project" }),
     Project.countDocuments({ applicationMode: "direct_hire", isDeleted: true }),
@@ -249,6 +251,7 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
     stats: {
       totalCompanies,
       totalActiveCompanies,
+      totalUsers,
       totalJobs,
       totalProjects,
       totalDeletedJobs,
