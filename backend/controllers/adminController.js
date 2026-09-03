@@ -51,7 +51,7 @@ User.find(query)
       .skip(skip)
       .limit(limit)
       .lean(),
-    User.countDocuments(query),
+    User.countDocuments({}),
   ]);
 
   res.json({
