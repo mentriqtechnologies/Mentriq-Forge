@@ -24,6 +24,7 @@ const ManageUsers = () => {
     const params = roleFilter ? { role: roleFilter } : {};
     const res = await api.get("/admin/users", { params });
     setUsers(res.data.users);
+    setTotalUsers(res.data.total);
   };
 
   const fetchProjects = async () => {
@@ -166,7 +167,7 @@ const ManageUsers = () => {
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-slate-400" />
           <h2 className="text-lg font-bold font-heading text-slate-900">All Users</h2>
-          <Badge color="slate">{users.length}</Badge>
+          <Badge color="slate">{totalUsers}</Badge>
         </div>
         <select
           value={roleFilter}
