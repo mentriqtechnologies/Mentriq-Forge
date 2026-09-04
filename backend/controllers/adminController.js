@@ -32,7 +32,7 @@ const createStaffUser = asyncHandler(async (req, res) => {
 // @route GET /api/admin/users
 const getAllUsers = asyncHandler(async (req, res) => {
   const { role, search } = req.query;
-  const { page, limit, skip } = getPagination(req.query);
+  const { page, limit, skip } = getPagination(req.query, { maxLimit: 500 });
 
   const query = {};
   if (role) query.role = role;
@@ -51,7 +51,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .lean(),
-    User.countDocuments({}),
+    User.countDocuments(query),
   ]);
 
   res.json({
