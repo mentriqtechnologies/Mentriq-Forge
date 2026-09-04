@@ -651,6 +651,7 @@ const companyScheduleInterview = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  FORWARDED_STATUSES,
   applyToProject,
   getMyApplications,
   getApplicationsForProject,

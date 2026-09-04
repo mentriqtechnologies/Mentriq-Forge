@@ -6,6 +6,7 @@ const Submission = require("../models/Submission");
 const Evaluation = require("../models/Evaluation");
 const Interview = require("../models/Interview");
 const User = require("../models/User");
+const { FORWARDED_STATUSES } = require("./applicationController");
 
 // Review-turnaround commitment: pending submissions older than this many days
 // are surfaced as "overdue" on the evaluator dashboard.
@@ -23,18 +24,20 @@ const getCompanyDashboard = asyncHandler(async (req, res) => {
 
   // Companies only see forwarded profiles for project-based hiring, but every
   // applicant on direct-hire jobs. Count the dashboard stats using the same rule
-  // so the numbers always match what the company can actually manage.
+  // so the numbers always match what the company can actually manage. The
+  // forwarded set must mirror applicationController's FORWARDED_STATUSES so the
+  // company's applicant list and its dashboard counts never disagree.
   const visibilityFilter = directProjectIds.length > 0
     ? {
         $or: [
           { project: { $in: directProjectIds } },
           {
             project: { $in: projectIds },
-            status: { $in: ["shortlisted", "interview_scheduled", "hired"] },
+            status: { $in: FORWARDED_STATUSES },
           },
         ],
       }
-    : { project: { $in: projectIds }, status: { $in: ["shortlisted", "interview_scheduled", "hired"] } };
+    : { project: { $in: projectIds }, status: { $in: FORWARDED_STATUSES } };
 
   const [totalApplications, shortlisted, interviewScheduled, hired, rejected] = await Promise.all([
     Application.countDocuments(visibilityFilter),

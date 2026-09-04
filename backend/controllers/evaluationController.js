@@ -133,9 +133,16 @@ const createEvaluation = asyncHandler(async (req, res) => {
   // Also create an linked interview evaluation if an interview exists
   const interview = await Interview.findOne({ application: submission.application });
   if (interview) {
-    // Update interview feedback and recommendation
+    // Interview outcomes use their own vocabulary (recommended / not_recommended /
+    // needs_further_review), so map the submission verdict onto it — writing the
+    // submission recommendation directly would violate the enum and fail to save.
+    const interviewRecByEvaluation = {
+      shortlist: "recommended",
+      reject: "not_recommended",
+      needs_upskilling: "needs_further_review",
+    };
     interview.feedback = feedback.trim();
-    interview.recommendation = recommendation;
+    interview.recommendation = interviewRecByEvaluation[recommendation] || interview.recommendation;
     interview.status = "completed";
     await interview.save();
   }
