@@ -105,6 +105,24 @@ userSchema.pre("save", function (next) {
   next();
 });
 
+// Enforce the "active user only" rule at the model level. Self-registered
+// candidates/companies are only allowed to exist once they have activated their
+// account (verified their email via the activation link). Un-activated
+// registrations are rejected here — they must never be stored in the database.
+// Staff (admin/evaluator) accounts created directly by admins are exempt, as
+// are Google/Firebase sign-ins whose email is already verified by the provider.
+userSchema.pre("validate", function (next) {
+  const selfSignedRoles = ["candidate", "company"];
+  if (selfSignedRoles.includes(this.role) && !this.isVerified) {
+    return next(
+      new Error(
+        "Account is not activated yet. A candidate/company must click the activation link sent to their email before it can be created."
+      )
+    );
+  }
+  next();
+});
+
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };

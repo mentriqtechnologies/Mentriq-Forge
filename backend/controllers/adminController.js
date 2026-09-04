@@ -8,6 +8,17 @@ const Interview = require("../models/Interview");
 const { getPagination } = require("../utils/pagination");
 const { deleteUserWithCascade } = require("../utils/userCascade");
 
+// Only self-registered candidates/companies that have activated their account
+// (verified email) count as active users. Un-activated registrations are not
+// stored/shown as active users. Staff (admin/evaluator) accounts are created
+// directly by admins and are trusted without email activation.
+const activeUserMatch = {
+  $or: [
+    { role: { $in: ["admin", "evaluator"] } },
+    { isVerified: true },
+  ],
+};
+
 // @desc Admin creates an evaluator or admin account
 // @route POST /api/admin/users
 const createStaffUser = asyncHandler(async (req, res) => {
@@ -34,15 +45,25 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const { role, search } = req.query;
   const { page, limit, skip } = getPagination(req.query, { maxLimit: 500 });
 
-  const query = {};
-  if (role) query.role = role;
+  const clauses = [];
+  if (role) clauses.push({ role });
   if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: "i" } },
-      { email: { $regex: search, $options: "i" } },
-      { companyName: { $regex: search, $options: "i" } },
-    ];
+    clauses.push({
+      $or: [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { companyName: { $regex: search, $options: "i" } },
+      ],
+    });
   }
+
+  // Only show active users. Self-registered candidates/companies must have
+  // activated their account (verified email) — un-activated registrations are
+  // not stored / shown as active users. Staff (admin/evaluator) accounts are
+  // created directly by admins and are trusted without email activation.
+  clauses.push(activeUserMatch);
+
+  const query = clauses.length > 0 ? { $and: clauses } : {};
 
   const [users, total] = await Promise.all([
     User.find(query)
@@ -234,9 +255,9 @@ const getAdminAnalytics = asyncHandler(async (req, res) => {
     totalHired,
     totalApplications,
   ] = await Promise.all([
-    User.countDocuments({ role: "company" }),
-    User.countDocuments({ role: "company", isActive: true }),
-    User.countDocuments(),
+    User.countDocuments(activeUserMatch),
+    User.countDocuments({ $and: [{ role: "company", isActive: true }, activeUserMatch] }),
+    User.countDocuments(activeUserMatch),
     Project.countDocuments({ applicationMode: "direct_hire" }),
     Project.countDocuments({ applicationMode: "project" }),
     Project.countDocuments({ applicationMode: "direct_hire", isDeleted: true }),

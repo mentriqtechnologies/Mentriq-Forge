@@ -129,9 +129,10 @@ export const AuthProvider = ({ children }) => {
     return persist(userData, token);
   };
 
-  // Firebase register: creates the account, sends the activation email,
-  // syncs the Mongo user — but does NOT log the user in until they activate
-  // their account from the Gmail link.
+  // Firebase register: creates the Firebase account and sends the activation
+  // email, but does NOT create the Mongo user yet. The user is only stored in
+  // the database (and appears in User Management) after clicking the activation
+  // link, which creates the Mongo record via firebaseAuth. No login until then.
   const register = async ({ name, email, password, role = "candidate", companyName } = {}) => {
     if (!isFirebaseConfigured()) {
       const res = await api.post("/auth/register", { name, email, password, role, companyName });
@@ -148,11 +149,19 @@ export const AuthProvider = ({ children }) => {
       throw err;
     }
 
-    const idToken = await cred.user.getIdToken(true);
-    const { user: userData } = await exchangeFirebaseToken(idToken, role, companyName, "signup");
+    // Persist the chosen role + company on the Firebase account so they can be
+    // applied later. Crucially, we do NOT create the Mongo user yet — the user
+    // only becomes an active user (and appears in the database / User Management)
+    // after clicking the activation link and verifying their email.
+    try {
+      const idToken = await cred.user.getIdToken(true);
+      await api.post("/auth/firebase/pending", { idToken, role, companyName });
+    } catch {
+      // best-effort; role defaults to candidate if claims are not set
+    }
 
     await firebaseApi.signOut().catch(() => {});
-    return { user: userData, needsVerification: true };
+    return { user: null, needsVerification: true };
   };
 
   // Re-send the activation email (Firebase sends it)

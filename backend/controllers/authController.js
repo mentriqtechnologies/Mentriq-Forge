@@ -539,7 +539,8 @@ const googleSignup = asyncHandler(async (req, res) => {
       googlePicture: draft.picture,
       googleConnectedAt: new Date(),
       avatarUrl: draft.picture,
-      isVerified: false,
+      // Google has already verified this email, so the account is active immediately.
+      isVerified: true,
     });
   }
 
@@ -572,6 +573,15 @@ const firebaseAuth = asyncHandler(async (req, res) => {
   const email = (claims.email || "").toLowerCase().trim();
   const provider = claims.firebase?.sign_in_provider || "";
   const isGoogle = provider === "google.com";
+  const emailVerified = Boolean(claims.email_verified);
+
+  // Pending registration details are stored in Firebase custom claims at
+  // sign-up time (see setPendingRegistrationClaims) so that the Mongo user is
+  // only created once the activation link has been clicked and the email is
+  // verified. This keeps un-activated registrations out of the database and
+  // out of the User Management section.
+  const pendingRole = claims.mentriq_role || "";
+  const pendingCompanyName = claims.mentriq_company_name || "";
 
   let user = await User.findOne({ firebaseUid });
   if (!user && email) {
@@ -579,10 +589,44 @@ const firebaseAuth = asyncHandler(async (req, res) => {
   }
 
   if (!user) {
-    // Logging in with an account that was never registered on the platform
-    if (intent !== "signup") {
-      res.status(404);
-      throw new Error("No account found. Please create an account first before logging in.");
+    // A valid, verified Firebase account (activation link clicked) that has no
+    // Mongo record yet → this is the moment the user becomes an active user and
+    // appears in the database / User Management section. Create it now with the
+    // role + company name chosen at registration.
+    if (emailVerified && !isGoogle) {
+      const allowedRoles = ["candidate", "company"];
+      const finalRole = allowedRoles.includes(pendingRole) ? pendingRole : "candidate";
+      user = await User.create({
+        name: claims.name || email.split("@")[0] || "New User",
+        email: email || `${firebaseUid}@firebase.local`,
+        password: crypto.randomBytes(24).toString("hex"),
+        role: finalRole,
+        companyName: finalRole === "company" ? pendingCompanyName : undefined,
+        firebaseUid,
+        googleId: isGoogle ? claims.uid : undefined,
+        googleEmail: isGoogle ? email : undefined,
+        googleName: isGoogle ? claims.name : undefined,
+        googlePicture: isGoogle ? claims.picture : undefined,
+        googleConnectedAt: isGoogle ? new Date() : undefined,
+        avatarUrl: claims.picture || undefined,
+        isVerified: true,
+      });
+      return res.json({
+        success: true,
+        user: user.toSafeObject(),
+        token: generateToken(user._id),
+      });
+    }
+
+    // Logging in with an account that was never registered on the platform,
+    // or registration that has NOT been activated yet.
+    if (intent !== "signup" || !emailVerified) {
+      res.status(403);
+      throw new Error(
+        emailVerified
+          ? "No account found. Please create an account first before logging in."
+          : "Your account has not been activated yet. Please click the activation link we sent to your email to activate it."
+      );
     }
     const allowedRoles = ["candidate", "company"];
     const finalRole = allowedRoles.includes(role) ? role : "candidate";
@@ -630,6 +674,38 @@ const firebaseAuth = asyncHandler(async (req, res) => {
     user: user.toSafeObject(),
     token: generateToken(user._id),
   });
+});
+
+// @desc Store pending registration details (role + company) on the Firebase
+// account as custom claims. Called from the register page BEFORE the user has
+// clicked the activation link, so the Mongo user is NOT created yet. When the
+// activation link is clicked (email verified), firebaseAuth reads these claims
+// to create the user with the correct role / company.
+// @route POST /api/auth/firebase/pending
+const setPendingRegistrationClaims = asyncHandler(async (req, res) => {
+  const { idToken, role, companyName } = req.body;
+  if (!idToken) {
+    res.status(400);
+    throw new Error("idToken is required");
+  }
+
+  let claims;
+  try {
+    claims = await verifyFirebaseToken(idToken);
+  } catch {
+    res.status(401);
+    throw new Error("Invalid or expired Firebase token");
+  }
+
+  const allowedRoles = ["candidate", "company"];
+  const finalRole = allowedRoles.includes(role) ? role : "candidate";
+
+  await adminFirebaseAuth.setCustomUserClaims(claims.uid, {
+    mentriq_role: finalRole,
+    mentriq_company_name: finalRole === "company" ? companyName || "" : "",
+  });
+
+  res.json({ success: true });
 });
 
 // @desc Migrate a legacy (pre-Firebase) email/password user into Firebase Auth
@@ -831,4 +907,4 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password reset successful" });
 });
 
-module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword, firebaseAuth, firebaseMigrate, sendVerificationEmail };
+module.exports = { registerUser, loginUser, getMe, updateMe, deleteMe, githubAuth, githubCallback, githubLink, githubUnlink, googleAuth, googleCallback, googleSignup, forgotPassword, resetPassword, firebaseAuth, firebaseMigrate, setPendingRegistrationClaims, sendVerificationEmail };
