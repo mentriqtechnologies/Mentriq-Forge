@@ -42,12 +42,19 @@ const VerifyEmail = () => {
         }
       } catch (err) {
         if (cancelled) return;
+
+        // auth/invalid-action-code can mean the link was already used (email is
+        // already verified) — treat it the same as a successful verification
+        // so the user sees "Email verified! Please sign in" instead of "failed".
+        if (err.code === "auth/invalid-action-code") {
+          setStatus("needsLogin");
+          return;
+        }
+
         setStatus("error");
         setMessage(
           err.code === "auth/expired-action-code"
             ? "This activation link has expired. Please request a new one from the login page."
-            : err.code === "auth/invalid-action-code"
-            ? "This activation link is invalid. Please try logging in again."
             : err.message || "Could not verify your email. Please try again."
         );
       }
@@ -104,7 +111,7 @@ const VerifyEmail = () => {
               </div>
               <h1 className="text-xl font-bold font-heading text-slate-900 mb-2">Email verified!</h1>
               <p className="text-sm text-slate-500 mb-6">
-                Your account has been activated. Sign in with your email and password to continue.
+                Your account has been activated. Please sign in with your email and password to continue.
               </p>
               <Button onClick={() => navigate("/login")} fullWidth>
                 Go to Login

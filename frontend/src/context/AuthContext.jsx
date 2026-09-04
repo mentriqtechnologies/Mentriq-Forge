@@ -172,9 +172,15 @@ export const AuthProvider = ({ children }) => {
     await firebaseApi.signOut().catch(() => {});
   };
 
-  // Called from /verify-email after the user clicks the activation link in Gmail
+  // Called from /verify-email after the user clicks the activation link in Gmail.
+  // applyActionCode verifies the email, then we sign the user in (they were
+  // signed out after registration) and exchange the token for a Mongo user.
   const verifyEmail = async (oobCode) => {
     await firebaseApi.applyActionCode(oobCode);
+
+    // After activation the Firebase account exists but the user is signed out
+    // (register signs out after sending the email). We need to sign in to get
+    // an idToken that can be exchanged for a Mongo user on the backend.
     const fbUser = firebaseApi.getFirebaseUser();
     if (fbUser) {
       await firebaseApi.reloadUser();
@@ -182,7 +188,10 @@ export const AuthProvider = ({ children }) => {
       const { user: userData, token } = await exchangeFirebaseToken(idToken);
       return persist(userData, token);
     }
-    return null; // not signed in on this device — user must log in to finish
+
+    // User is signed out — still a valid activation. Return null so the
+    // VerifyEmail page can show "Email verified! Please sign in."
+    return null;
   };
 
   // Forgot password — Firebase sends the reset link email (no SMTP needed).
