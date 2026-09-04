@@ -1,8 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Avatar from "./ui/Avatar";
+import NotificationBell from "./NotificationBell";
 import Dropdown, { DropdownItem, DropdownDivider } from "./ui/Dropdown";
 import { Settings, LogOut, UserCircle } from "lucide-react";
 
@@ -29,14 +30,7 @@ const Topbar = ({ onMenuToggle, mobileOpen }) => {
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          <Bell className="w-5 h-5" aria-hidden="true" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-forge-primary rounded-full" aria-hidden="true" />
-        </button>
+        <NotificationBell />
 
         <Dropdown
           label="Account menu"

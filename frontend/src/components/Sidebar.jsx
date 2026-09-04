@@ -52,6 +52,7 @@ const roleNavItems = {
     { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
     { to: "/admin/manage-jobs", label: "Manage Jobs & Projects", icon: ClipboardList },
     { to: "/admin/users", label: "Manage Users", icon: Shield },
+    { to: "/admin/notifications", label: "Notifications", icon: Bell },
     { to: "/admin/deleted-reports", label: "Deleted Reports", icon: Archive },
     { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
     { to: "/profile", label: "Profile", icon: UserCircle },

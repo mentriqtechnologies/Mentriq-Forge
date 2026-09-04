@@ -48,6 +48,7 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/github", require("./routes/githubRoutes"));
 app.use("/api/verification", require("./routes/verificationRoutes"));
 app.use("/api/interviews", require("./routes/interviewRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 app.use(notFound);
 app.use(errorHandler);

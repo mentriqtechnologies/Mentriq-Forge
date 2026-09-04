@@ -45,6 +45,8 @@ import EvaluatorEvaluationResults from "./pages/evaluator/EvaluationResults";
 import ApplicationDetail from "./pages/evaluator/ApplicationDetail";
 import InterviewForm from "./pages/evaluator/InterviewForm";
 import ApplicationQueue from "./pages/evaluator/ApplicationQueue";
+import NotificationsPage from "./pages/Notifications";
+import ManageNotifications from "./pages/admin/ManageNotifications";
 
 const PublicLayout = ({ children }) => (
   <>
@@ -300,6 +302,22 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><HiredCandidates /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute allowedRoles={["candidate", "company", "evaluator", "admin"]}>
+              <AuthLayout><NotificationsPage /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AuthLayout><ManageNotifications /></AuthLayout>
             </ProtectedRoute>
           }
         />
