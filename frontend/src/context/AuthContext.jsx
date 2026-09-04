@@ -142,8 +142,6 @@ export const AuthProvider = ({ children }) => {
     const cred = await firebaseApi.createUser(email, password);
     try {
       await firebaseApi.updateDisplayName(cred.user, name);
-      // Firebase khud activation email bhejega (default template — no SMTP/Resend needed)
-      await firebaseApi.sendVerificationEmail(cred.user);
     } catch (err) {
       await firebaseApi.signOut().catch(() => {});
       throw err;
@@ -160,15 +158,28 @@ export const AuthProvider = ({ children }) => {
       // best-effort; role defaults to candidate if claims are not set
     }
 
+    // Send the branded activation email through the backend (SMTP/Resend).
+    // This gives us full control over the professional HTML template.
+    try {
+      await api.post("/auth/send-verification-email", { email, name });
+    } catch {
+      // Fall back to Firebase's built-in verification email if the backend
+      // email provider is unavailable.
+      try {
+        await firebaseApi.sendVerificationEmail(cred.user);
+      } catch {
+        // ignore — the frontend still shows the "check your inbox" message
+      }
+    }
+
     await firebaseApi.signOut().catch(() => {});
     return { user: null, needsVerification: true };
   };
 
-  // Re-send the activation email (Firebase sends it)
+  // Re-send the activation email (sent through the backend so it uses the
+  // branded HTML template)
   const resendVerification = async (email, password) => {
-    const cred = await firebaseApi.signInWithEmailAndPassword(email, password);
-    await firebaseApi.sendVerificationEmail(cred.user);
-    await firebaseApi.signOut().catch(() => {});
+    await api.post("/auth/send-verification-email", { email });
   };
 
   // Called from /verify-email after the user clicks the activation link in Gmail

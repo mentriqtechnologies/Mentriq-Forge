@@ -122,17 +122,25 @@ const Register = () => {
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
                   <Send className="w-7 h-7 text-emerald-600" aria-hidden="true" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Activate your account</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Almost there — check your inbox</h2>
                 <p className="text-sm text-emerald-700 leading-relaxed">
-                  We've sent an <strong>activation link</strong> to{" "}
-                  <strong className="break-all">{registeredEmail}</strong>.
-                  <br />
-                  <br />
-                  Click the link in that email to activate your account, then sign in.
+                  We've sent an <strong>activation email</strong> to{" "}
+                  <strong className="break-all">{registeredEmail}</strong> to confirm your account.
                 </p>
+                <div className="mt-4 text-left bg-white/60 rounded-xl p-4 space-y-2 text-xs text-emerald-700">
+                  <p>
+                    <strong>1.</strong> Open the email we just sent you.
+                  </p>
+                  <p>
+                    <strong>2.</strong> Click the <strong>Activate my account</strong> button inside.
+                  </p>
+                  <p>
+                    <strong>3.</strong> Once activated, you can sign in and get started.
+                  </p>
+                </div>
                 <p className="text-xs text-emerald-600 mt-4">
-                  Didn't get the email? Check your spam folder, or try signing in — the link will be re-sent if your
-                  account is not active yet.
+                  Didn't receive the email? Check your <strong>spam</strong> or <strong>junk</strong> folder, or try signing
+                  in — we'll send you a fresh activation link.
                 </p>
               </div>
               <Button onClick={() => navigate("/login")} fullWidth size="lg">

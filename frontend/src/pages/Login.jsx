@@ -141,7 +141,9 @@ const Login = () => {
                 {notVerified && (
                   <div className="mt-2">
                     {resent ? (
-                      <p className="text-emerald-600 font-medium">Activation email re-sent. Check your inbox (and spam).</p>
+                      <p className="text-emerald-600 font-medium">
+                        A new activation email is on its way. Please check your inbox (and spam folder) to activate your account.
+                      </p>
                     ) : (
                       <button
                         type="button"

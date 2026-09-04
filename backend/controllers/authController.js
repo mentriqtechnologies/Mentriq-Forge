@@ -758,8 +758,12 @@ const firebaseMigrate = asyncHandler(async (req, res) => {
 // Called after registration or "resend activation email". The link opens the
 // frontend /verify-email page where the code is applied (handleCodeInApp).
 // @route POST /api/auth/send-verification-email
+// @desc Send account activation (email verification) link with branded HTML
+// Called after registration or "resend activation email". The link opens the
+// frontend /verify-email page where the code is applied (handleCodeInApp).
+// @route POST /api/auth/send-verification-email
 const sendVerificationEmail = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const { email, name } = req.body;
   if (!email) {
     res.status(400);
     throw new Error("Email is required");
@@ -767,31 +771,29 @@ const sendVerificationEmail = asyncHandler(async (req, res) => {
 
   const normalizedEmail = normalizeEmail(email);
   const user = await User.findOne(buildEmailQuery(normalizedEmail));
-  if (!user) {
-    res.status(404);
-    throw new Error("No account found with this email address");
-  }
+  const displayName = name || user?.name || normalizedEmail.split("@")[0] || "there";
 
-  if (user.isVerified) {
+  // If a Mongo user exists and is already activated, there is nothing to send.
+  if (user && user.isVerified) {
     return res.json({ success: true, message: "Account is already activated" });
   }
 
-  const link = await adminFirebaseAuth.generateEmailVerificationLink(user.email, {
+  const link = await adminFirebaseAuth.generateEmailVerificationLink(normalizedEmail, {
     url: `${process.env.CLIENT_URL}/verify-email`,
     handleCodeInApp: true,
   });
 
   try {
     await sendEmail({
-      to: user.email,
+      to: normalizedEmail,
       subject: "Activate your MentriQ Forge account",
       html: buildActionEmailHtml({
-        heading: `Welcome to MentriQ Forge, ${user.name.split(" ")[0]}!`,
+        heading: `Welcome to MentriQ Forge, ${displayName.split(" ")[0]}!`,
         message:
-          "Your account has been created. Click the button below to activate it — this confirms your email address and lets you sign in.",
+          "Thanks for signing up. To get started, please activate your account by confirming your email address. Click the button below to finish setting up your account.",
         buttonText: "Activate my account",
         link,
-        expiryNote: "This activation link expires in a few hours. If it expires, request a new one from the login page.",
+        expiryNote: "This activation link expires in a few hours. If it expires, you can request a new one from the login page.",
       }),
     });
     res.json({ success: true, message: "Activation email sent" });
