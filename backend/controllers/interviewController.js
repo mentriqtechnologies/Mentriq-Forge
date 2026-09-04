@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const Interview = require("../models/Interview");
 const Application = require("../models/Application");
 const User = require("../models/User");
+const Evaluation = require("../models/Evaluation");
 const { recordStatus } = require("./applicationController");
 
 const validateInterviewFields = (mode, data) => {
@@ -172,6 +173,8 @@ const updateInterview = asyncHandler(async (req, res) => {
 });
 
 // @desc Mark interview as completed
+//       Accepts an optional outcome payload ({ feedback, recommendation }) so a
+//       completed interview can record the evaluator's verdict in one step.
 // @route POST /api/interviews/:id/complete
 const completeInterview = asyncHandler(async (req, res) => {
   const interview = await Interview.findById(req.params.id);
@@ -194,16 +197,18 @@ const completeInterview = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to complete this interview");
   }
 
+  // Record the evaluator's verdict when provided (backwards compatible — old
+  // clients can still call complete without an outcome).
+  const { feedback, recommendation } = req.body || {};
+  if (typeof feedback === "string" && feedback.trim()) {
+    interview.feedback = feedback.trim();
+    if (["recommended", "not_recommended", "needs_further_review"].includes(recommendation)) {
+      interview.recommendation = recommendation;
+    }
+  }
+
   interview.status = "completed";
   await interview.save();
-
-  // Update application status if needed
-  const application = await Application.findById(interview.application);
-  if (application) {
-    // Keep existing status - don't force transitions in Part 5
-    application.status = application.status;
-    await application.save();
-  }
 
   res.json({ success: true, interview });
 });
@@ -253,13 +258,34 @@ const getInterviews = asyncHandler(async (req, res) => {
   if (mode && mode !== "all") query.mode = mode;
 
   const interviews = await Interview.find(query)
-    .populate("candidate", "name email githubUsername linkedinUsername")
-    .populate("application", "project")
+    .populate("candidate", "name email githubUsername linkedinUsername avatarUrl")
+    .populate({
+      path: "application",
+      select: "candidate project status",
+      populate: [
+        { path: "candidate", select: "name email" },
+        { path: "project", select: "title domain applicationMode", populate: { path: "company", select: "name companyName industry" } },
+      ],
+    })
     .populate("createdBy", "name")
     .sort({ createdAt: -1 })
     .limit(100);
 
-  res.json({ success: true, interviews });
+  // Attach whether the evaluator has already recorded a verdict, so the UI can
+  // surface interviews that still need an outcome recorded.
+  const applicationIds = interviews.map((i) => i.application?._id).filter(Boolean);
+  const evaluated = new Set();
+  if (applicationIds.length) {
+    const evals = await Evaluation.find({ application: { $in: applicationIds } }).select("application").lean();
+    evals.forEach((e) => evaluated.add(e.application.toString()));
+  }
+
+  const results = interviews.map((interview) => ({
+    ...interview.toObject(),
+    evaluated: evaluated.has(String(interview.application?._id || interview.application)) || Boolean(interview.feedback?.trim() || (interview.status === "completed" && interview.feedback)),
+  }));
+
+  res.json({ success: true, interviews: results });
 });
 
 // @desc Get evaluations for an interview

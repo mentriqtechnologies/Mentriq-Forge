@@ -45,7 +45,6 @@ const submitVerification = asyncHandler(async (req, res) => {
   user.verificationStatus = "pending";
   user.verificationReason = "";
   user.verificationSubmittedAt = new Date();
-  user.isVerified = false;
   await user.save();
 
   res.status(201).json({
@@ -124,7 +123,6 @@ const reviewCandidate = asyncHandler(async (req, res) => {
   }
 
   user.verificationStatus = status;
-  user.isVerified = status === "approved";
   user.verificationReason = status === "rejected" ? reason.trim() : "";
   user.verificationReviewedAt = new Date();
   user.verificationReviewedBy = req.user._id;

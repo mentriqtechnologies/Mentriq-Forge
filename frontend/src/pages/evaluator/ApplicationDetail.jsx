@@ -26,6 +26,7 @@ const ApplicationDetail = () => {
   const [application, setApplication] = useState(null);
   const [evaluation, setEvaluation] = useState(null);
   const [interviews, setInterviews] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +37,7 @@ const ApplicationDetail = () => {
       setApplication(res.data.application);
       setEvaluation(res.data.evaluation || null);
       setInterviews(res.data.interviews || []);
+      setSubmissions(res.data.submissions || []);
       setLoading(false);
     }).catch((err) => {
       setError(err.response?.data?.message || "Failed to load application");
@@ -328,6 +330,39 @@ const ApplicationDetail = () => {
               <p className="text-xs text-slate-500">No evaluation yet</p>
             )}
           </div>
+        </div>
+      </Card>
+
+      <Card padding={false} hover={false}>
+        <div className="p-6">
+          <h2 className="text-base font-bold font-heading text-slate-900 mb-4">Submitted Work</h2>
+          {submissions.length > 0 ? (
+            <div className="space-y-3">
+              {submissions.map((sub) => (
+                <div key={sub._id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {sub.linkedRepoName || (sub.repoUrl ? sub.repoUrl.split("/").pop() : "Submission")}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Submitted {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : "—"}
+                      {" · "}
+                      {sub.status === "reviewed" ? "Reviewed" : "Pending review"}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    to={`/evaluator/submissions/${sub._id}/evaluate`}
+                    icon={ExternalLink}
+                  >
+                    {sub.status === "reviewed" ? "View Evaluation" : "Evaluate Work"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">The candidate has not submitted work for this application yet.</p>
+          )}
         </div>
       </Card>
 

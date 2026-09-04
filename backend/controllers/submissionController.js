@@ -109,8 +109,8 @@ const getPendingSubmissions = asyncHandler(async (req, res) => {
   const [submissions, total] = await Promise.all([
 Submission.find(filter)
       .select("candidate project application linkedRepoName linkedRepoUrl linkedRepoVisibility repoUrl liveDemoUrl driveLink fileUrls notes repoAnalytics submittedAt status")
-      .populate("candidate", "name email skills githubUsername githubAvatar githubProfile githubConnectedAt")
-      .populate("project", "title domain company description")
+      .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks githubUsername githubProfile githubConnectedAt")
+      .populate("project", "title domain description company")
       .populate("application", "appliedAt status")
       .sort({ submittedAt: 1 })
       .skip(skip)
@@ -126,8 +126,12 @@ Submission.find(filter)
 // @route GET /api/submissions/:id
 const getSubmissionById = asyncHandler(async (req, res) => {
   const submission = await Submission.findById(req.params.id)
-    .populate("candidate", "name email skills")
-    .populate("project");
+    .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks linkedinUrl githubUsername githubProfile isVerified verificationStatus")
+    .populate({
+      path: "project",
+      select: "title domain description company jobRole difficulty skillsRequired applicationMode",
+      populate: { path: "company", select: "name companyName industry" },
+    });
   if (!submission) {
     res.status(404);
     throw new Error("Submission not found");

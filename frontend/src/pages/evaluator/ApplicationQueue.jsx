@@ -105,6 +105,12 @@ const ApplicationQueue = () => {
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <StatCard label="Applications" value={total} icon={FileText} color="forge" />
+          <StatCard
+            label="Incomplete Profiles"
+            value={applications.filter((a) => !a.profileComplete).length}
+            icon={FileText}
+            color={applications.some((a) => !a.profileComplete) ? "orange" : "green"}
+          />
         </div>
       </motion.div>
 
@@ -221,6 +227,14 @@ const ApplicationQueue = () => {
                             <Badge color={experienceColors[app.candidate.experienceLevel] || "slate"} dot>
                               {app.candidate.experienceLevel.replace(/_/g, " ")}
                             </Badge>
+                          )}
+                          {!app.profileComplete && (
+                            <Badge color={app.candidate?.verificationStatus === "rejected" ? "red" : "amber"} dot>
+                              Profile incomplete ({app.missingProfileFields?.length || 0})
+                            </Badge>
+                          )}
+                          {app.waitDays >= 7 && ["applied", "in_progress", "submitted", "under_review"].includes(app.status) && (
+                            <Badge color="red" dot>Waiting {app.waitDays}d</Badge>
                           )}
                           <StatusBadge status={app.status} />
                         </div>

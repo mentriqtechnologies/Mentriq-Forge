@@ -4,6 +4,7 @@ const Project = require("../models/Project");
 const User = require("../models/User");
 const Evaluation = require("../models/Evaluation");
 const Interview = require("../models/Interview");
+const Submission = require("../models/Submission");
 const { getPagination } = require("../utils/pagination");
 const { getMissingProfileFields } = require("../utils/profileCompleteness");
 
@@ -244,12 +245,15 @@ const getApplicationDetail = asyncHandler(async (req, res) => {
     }
   }
 
-  const [evaluation, interviews] = await Promise.all([
+  const [evaluation, interviews, submissions] = await Promise.all([
     Evaluation.findOne({ application: application._id }),
     Interview.find({ application: application._id }).sort({ createdAt: -1 }),
+    Submission.find({ application: application._id })
+      .select("repoUrl linkedRepoName liveDemoUrl driveLink status submittedAt")
+      .sort({ createdAt: -1 }),
   ]);
 
-  res.json({ success: true, application, evaluation, interviews });
+  res.json({ success: true, application, evaluation, interviews, submissions });
 });
 
 // @desc Update application status (role-scoped pipeline control)
@@ -390,7 +394,7 @@ const getEvaluatorApplicationQueue = asyncHandler(async (req, res) => {
 
   const [applications, total] = await Promise.all([
     Application.find(query)
-      .populate("candidate", "name email skills experienceLevel avatarUrl isVerified")
+      .populate("candidate", "name email phone bio avatarUrl skills experienceLevel education resumeUrl portfolioLinks linkedinUrl githubUsername isVerified verificationStatus")
       .populate({
         path: "project",
         select: "title jobRole domain applicationMode company",
@@ -403,7 +407,16 @@ const getEvaluatorApplicationQueue = asyncHandler(async (req, res) => {
     Application.countDocuments(query),
   ]);
 
-  res.json({ success: true, applications, total, page, pages: Math.ceil(total / limit) });
+  // Surface profile completeness so the evaluator can flag under-filled profiles
+  // before forwarding, and how long this application has waited in the queue.
+  const serialized = applications.map((app) => ({
+    ...app,
+    profileComplete: (app.candidate && getMissingProfileFields(app.candidate).length === 0) || false,
+    missingProfileFields: app.candidate ? getMissingProfileFields(app.candidate) : [],
+    waitDays: app.createdAt ? Math.floor((Date.now() - new Date(app.createdAt).getTime()) / 86400000) : 0,
+  }));
+
+  res.json({ success: true, applications: serialized, total, page, pages: Math.ceil(total / limit) });
 });
 
 // @desc Get shortlist for project (enhanced)

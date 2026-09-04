@@ -30,7 +30,7 @@ import Feedback from "./pages/candidate/Feedback";
 import CandidateSettings from "./pages/candidate/CandidateSettings";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import EvaluateSubmission from "./pages/admin/EvaluateSubmission";
+import EvaluateSubmission from "./pages/evaluator/EvaluateSubmission";
 import ManageUsers from "./pages/admin/ManageUsers";
 import ManageJobs from "./pages/admin/ManageJobs";
 import SubmissionsManager from "./pages/admin/SubmissionsManager";

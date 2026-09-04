@@ -7,6 +7,10 @@ const Evaluation = require("../models/Evaluation");
 const Interview = require("../models/Interview");
 const User = require("../models/User");
 
+// Review-turnaround commitment: pending submissions older than this many days
+// are surfaced as "overdue" on the evaluator dashboard.
+const EVALUATOR_SLA_DAYS = 7;
+
 // @desc Company dashboard stats
 // @route GET /api/dashboard/company
 const getCompanyDashboard = asyncHandler(async (req, res) => {
@@ -188,20 +192,58 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
 // @desc Evaluator dashboard - evaluation workload stats
 // @route GET /api/dashboard/evaluator
 const getEvaluatorDashboard = asyncHandler(async (req, res) => {
+  const overdueDate = new Date(Date.now() - EVALUATOR_SLA_DAYS * 24 * 60 * 60 * 1000);
+
   const [
     pendingSubmissions,
     reviewedSubmissions,
     myEvaluations,
     avgAgg,
     recAgg,
+    scoreAgg,
+    domainAgg,
     upcomingInterviews,
     recentPending,
+    overduePending,
+    profileReviewsPending,
+    overdueTotal,
+    interviewOutcomesPending,
+    pendingInterviewOutcomes,
   ] = await Promise.all([
     Submission.countDocuments({ status: "pending_review" }),
     Submission.countDocuments({ status: "reviewed" }),
     Evaluation.countDocuments({ evaluator: req.user._id }),
     Evaluation.aggregate([{ $group: { _id: null, avg: { $avg: "$overallScore" } } }]),
     Evaluation.aggregate([{ $group: { _id: "$recommendation", count: { $sum: 1 } } }]),
+    Evaluation.aggregate([
+      { $match: { evaluator: req.user._id } },
+      {
+        $group: {
+          _id: null,
+          codeQuality: { $avg: "$scores.codeQuality" },
+          problemSolving: { $avg: "$scores.problemSolving" },
+          standardsAdherence: { $avg: "$scores.standardsAdherence" },
+          completeness: { $avg: "$scores.completeness" },
+          communication: { $avg: "$scores.communication" },
+          overall: { $avg: "$overallScore" },
+        },
+      },
+    ]),
+    // Workload split by project domain so the evaluator can see where the queue is heaviest.
+    Submission.aggregate([
+      { $match: { status: "pending_review" } },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "project",
+          foreignField: "_id",
+          as: "project",
+        },
+      },
+      { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
+      { $group: { _id: { $ifNull: ["$project.domain", "Other"] }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]),
     Interview.find({ interviewOwner: "evaluator", status: "scheduled" })
       .select("date startTime endTime mode interviewType application")
       .sort({ date: 1 })
@@ -210,6 +252,27 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
       .populate("candidate", "name email avatarUrl experienceLevel")
       .populate("project", "title domain")
       .sort({ submittedAt: 1 })
+      .limit(5),
+    // The evaluation team commits to a review SLA; submissions waiting longer get flagged.
+    Submission.find({ status: "pending_review", submittedAt: { $lte: overdueDate } })
+      .populate("candidate", "name email avatarUrl experienceLevel")
+      .populate("project", "title domain")
+      .sort({ submittedAt: 1 })
+      .limit(5),
+    Application.countDocuments({
+      applicationType: "project",
+      status: { $in: ["applied", "in_progress", "submitted", "under_review"] },
+    }),
+    Submission.countDocuments({ status: "pending_review", submittedAt: { $lte: overdueDate } }),
+    Interview.countDocuments({
+      interviewOwner: "evaluator",
+      status: "completed",
+      feedback: { $in: ["", null] },
+    }),
+    Interview.find({ interviewOwner: "evaluator", status: "completed", feedback: { $in: ["", null] } })
+      .populate("candidate", "name email")
+      .populate({ path: "application", select: "candidate", populate: { path: "candidate", select: "name email" } })
+      .sort({ updatedAt: -1 })
       .limit(5),
   ]);
 
@@ -220,7 +283,7 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
     .lean();
   const myAppIds = myReviewApps.map((e) => e.application).filter(Boolean);
 
-  const [hiredFromMyReviews, hiredCountFromMyReviews] = await Promise.all([
+  const [hiredFromMyReviews, hiredCountFromMyReviews, recentEvaluations] = await Promise.all([
     myAppIds.length
       ? Application.find({ _id: { $in: myAppIds }, status: "hired" })
           .populate("candidate", "name email avatarUrl")
@@ -235,6 +298,16 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
     myAppIds.length
       ? Application.countDocuments({ _id: { $in: myAppIds }, status: "hired" })
       : Promise.resolve(0),
+    // The evaluator's own recent decisions so they can double-check consistency.
+    Evaluation.find({ evaluator: req.user._id })
+      .populate("submission", "repoUrl linkedRepoName")
+      .populate({
+        path: "application",
+        select: "candidate project",
+        populate: { path: "project", select: "title domain" },
+      })
+      .sort({ createdAt: -1 })
+      .limit(5),
   ]);
 
   // Every officially hired candidate (both project-based and direct jobs) so the
@@ -258,6 +331,17 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
     if (recommendations[r._id] !== undefined) recommendations[r._id] = r.count;
   });
 
+  const scoreTrend = scoreAgg.length
+    ? {
+        codeQuality: Number(scoreAgg[0].codeQuality.toFixed(1)),
+        problemSolving: Number(scoreAgg[0].problemSolving.toFixed(1)),
+        standardsAdherence: Number(scoreAgg[0].standardsAdherence.toFixed(1)),
+        completeness: Number(scoreAgg[0].completeness.toFixed(1)),
+        communication: Number(scoreAgg[0].communication.toFixed(1)),
+        overall: Number(scoreAgg[0].overall.toFixed(1)),
+      }
+    : null;
+
   res.json({
     success: true,
     stats: {
@@ -267,12 +351,21 @@ const getEvaluatorDashboard = asyncHandler(async (req, res) => {
       avgScore,
       hiredFromMyReviews: hiredCountFromMyReviews,
       totalHires,
+      profileReviewsPending,
+      interviewOutcomesPending,
+      overdueCount: overdueTotal,
       ...recommendations,
     },
+    slaDays: EVALUATOR_SLA_DAYS,
+    scoreTrend,
+    workloadByDomain: domainAgg,
     upcomingInterviews,
     recentPending,
+    overduePending,
+    pendingInterviewOutcomes,
     hiredFromMyReviews,
     recentHires,
+    recentEvaluations,
   });
 });
 
