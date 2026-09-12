@@ -209,7 +209,7 @@ const ManageEvaluators = () => {
                     <img
                       src={resolveImageUrl(member.photo)}
                       alt={member.name}
-                      className="h-14 w-14 shrink-0 rounded-2xl object-cover object-top"
+                      className="h-14 w-14 shrink-0 rounded-2xl object-cover object-center"
                     />
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-forge-primary to-forge-secondary text-lg font-bold text-white">
@@ -335,7 +335,7 @@ const ManageEvaluators = () => {
 
           {form.photo && (
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <img src={resolveImageUrl(form.photo)} alt="Preview" className="h-12 w-12 rounded-xl object-cover object-top" />
+              <img src={resolveImageUrl(form.photo)} alt="Preview" className="h-12 w-12 rounded-xl object-cover object-center" />
               <p className="text-xs text-slate-500">Photo preview. Use a square image or a Google Drive link for best results.</p>
             </div>
           )}
