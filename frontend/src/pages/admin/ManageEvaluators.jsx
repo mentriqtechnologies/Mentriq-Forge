@@ -245,7 +245,7 @@ const ManageEvaluators = () => {
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center gap-1.5 border-t border-slate-100 pt-3">
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
                   <button
                     onClick={() => toggleActive(member)}
                     className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${

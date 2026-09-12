@@ -95,7 +95,7 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
-      <div className="app-container h-16 lg:h-18 flex items-center justify-between">
+      <div className="app-container h-16 lg:h-20 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <img src="/logo.png" alt="MentriQ Forge" className="h-8 w-auto" />
           <div className="hidden sm:block">
@@ -104,7 +104,7 @@ const Navbar = () => {
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1">
           <Link
             to="/projects"
             className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"

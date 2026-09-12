@@ -35,7 +35,7 @@ const Footer = () => (
         <div>
           <h3 className="mb-2.5 text-sm font-semibold uppercase tracking-[0.2em] text-white">Company</h3>
           <ul className="space-y-2 text-sm text-slate-400">
-            <li><a href="mailto:support@mentriqtechnologies.in" className="hover:text-white transition-colors">support@mentriqtechnologies.in</a></li>
+            <li><a href="mailto:support@mentriqtechnologies.in" className="break-all hover:text-white transition-colors">support@mentriqtechnologies.in</a></li>
             <li><span>Jaipur, Rajasthan, India</span></li>
             <li><span>Building better hiring outcomes</span></li>
           </ul>
