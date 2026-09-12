@@ -30,6 +30,13 @@ const emptyForm = {
   sortOrder: "0",
 };
 
+const Field = ({ label, children }) => (
+  <div className="space-y-1">
+    <label className="block text-sm font-medium text-slate-700">{label}</label>
+    {children}
+  </div>
+);
+
 const ManageEvaluators = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,13 +140,6 @@ const ManageEvaluators = () => {
       setError(err.response?.data?.message || "Failed to remove evaluator");
     }
   };
-
-  const Field = ({ label, children }) => (
-    <div className="space-y-1">
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
