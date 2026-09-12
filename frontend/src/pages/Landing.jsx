@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import { resolveImageUrl } from "../utils/imageUrl";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -58,11 +59,12 @@ const previewPalette = [
 
 const PreviewPhoto = ({ member, index }) => {
   const [failed, setFailed] = useState(false);
-  const showImg = member.photo && !failed;
+  const photoUrl = resolveImageUrl(member.photo);
+  const showImg = photoUrl && !failed;
   if (showImg) {
     return (
       <img
-        src={member.photo}
+        src={photoUrl}
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}

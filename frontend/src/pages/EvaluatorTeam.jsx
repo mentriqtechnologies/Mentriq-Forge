@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import { resolveImageUrl } from "../utils/imageUrl";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -48,13 +49,14 @@ const talentDomains = [
 
 const MemberPhoto = ({ member, index }) => {
   const [failed, setFailed] = useState(false);
-  const showImg = member.photo && !failed;
+  const photoUrl = resolveImageUrl(member.photo);
+  const showImg = photoUrl && !failed;
   const gradient = avatarPalette[index % avatarPalette.length];
 
   if (showImg) {
     return (
       <img
-        src={member.photo}
+        src={photoUrl}
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}

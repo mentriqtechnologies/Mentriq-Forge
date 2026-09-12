@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { PageHeader, Card, Input, Textarea, Button, Badge, Modal, EmptyState } from "../../components/ui";
+import { resolveImageUrl } from "../../utils/imageUrl";
 
 const emptyForm = {
   name: "",
@@ -206,7 +207,7 @@ const ManageEvaluators = () => {
                 <div className="flex items-start gap-3">
                   {member.photo ? (
                     <img
-                      src={member.photo}
+                      src={resolveImageUrl(member.photo)}
                       alt={member.name}
                       className="h-14 w-14 shrink-0 rounded-2xl object-cover object-top"
                     />
@@ -334,8 +335,8 @@ const ManageEvaluators = () => {
 
           {form.photo && (
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <img src={form.photo} alt="Preview" className="h-12 w-12 rounded-xl object-cover object-top" />
-              <p className="text-xs text-slate-500">Photo preview. Use a square image for best results.</p>
+              <img src={resolveImageUrl(form.photo)} alt="Preview" className="h-12 w-12 rounded-xl object-cover object-top" />
+              <p className="text-xs text-slate-500">Photo preview. Use a square image or a Google Drive link for best results.</p>
             </div>
           )}
 

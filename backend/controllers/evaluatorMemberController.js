@@ -1,6 +1,15 @@
 const asyncHandler = require("express-async-handler");
 const EvaluatorMember = require("../models/EvaluatorMember");
 
+function normalizePhotoUrl(url) {
+  if (!url) return "";
+  const driveMatch = String(url).match(
+    /(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=download&)?id=))([\w-]{10,})/i
+  );
+  if (driveMatch) return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
+  return String(url).trim();
+}
+
 // @desc Get active evaluator team members (public)
 // @route GET /api/evaluators
 const getPublicEvaluators = asyncHandler(async (req, res) => {
@@ -31,7 +40,7 @@ const createEvaluatorMember = asyncHandler(async (req, res) => {
 
   const member = await EvaluatorMember.create({
     name,
-    photo: photo || "",
+    photo: normalizePhotoUrl(photo),
     evaluates,
     experience,
     rating: rating != null ? rating : 4.8,
@@ -57,7 +66,7 @@ const updateEvaluatorMember = asyncHandler(async (req, res) => {
   const { name, photo, evaluates, experience, rating, reviews, bio, tags, isActive, sortOrder } = req.body;
 
   if (name !== undefined) member.name = name;
-  if (photo !== undefined) member.photo = photo;
+  if (photo !== undefined) member.photo = normalizePhotoUrl(photo);
   if (evaluates !== undefined) member.evaluates = evaluates;
   if (experience !== undefined) member.experience = experience;
   if (rating !== undefined) member.rating = rating;
