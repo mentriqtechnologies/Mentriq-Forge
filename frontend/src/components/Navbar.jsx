@@ -58,6 +58,7 @@ const Navbar = () => {
             <nav className="space-y-2 mb-4">
               <Link to="/projects" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100">Browse Hiring</Link>
               <Link to="/how-it-works" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100">How It Works</Link>
+              <Link to="/evaluators" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100">Our Evaluators</Link>
             </nav>
 
             <div className="mb-4">
@@ -115,6 +116,12 @@ const Navbar = () => {
             className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
           >
             How It Works
+          </Link>
+          <Link
+            to="/evaluators"
+            className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
+          >
+            Our Evaluators
           </Link>
         </nav>
 

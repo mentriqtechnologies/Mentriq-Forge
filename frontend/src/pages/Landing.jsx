@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import api from "../api/axios";
 import {
   ArrowRight, Briefcase, Users, CheckCircle, BarChart3,
   FileCode, Award, TrendingUp, Star, Building2,
@@ -48,7 +49,62 @@ const featureCards = [
   { icon: BarChart3, title: "Decision-ready analytics", text: "Recruiting teams get visibility into performance metrics and candidate readiness." },
 ];
 
+const previewPalette = [
+  "from-forge-primary to-blue-500",
+  "from-forge-secondary to-orange-400",
+  "from-purple-500 to-pink-500",
+  "from-emerald-500 to-teal-400",
+];
+
+const PreviewPhoto = ({ member, index }) => {
+  const [failed, setFailed] = useState(false);
+  const showImg = member.photo && !failed;
+  if (showImg) {
+    return (
+      <img
+        src={member.photo}
+        alt={member.name}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-40 w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+      />
+    );
+  }
+  return (
+    <div className={`flex h-40 w-full items-center justify-center bg-gradient-to-br ${previewPalette[index % previewPalette.length]}`}>
+      <span className="text-4xl font-extrabold text-white/90">
+        {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+      </span>
+    </div>
+  );
+};
+
 const Landing = () => {
+  const [evaluators, setEvaluators] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.get("/evaluators");
+        if (active && res.data.members?.length) {
+          setEvaluators(res.data.members.slice(0, 4).map((m) => ({
+            name: m.name,
+            field: m.evaluates,
+            exp: m.experience,
+            rating: m.rating,
+            photo: m.photo,
+          })));
+        }
+      } catch (err) {
+        // Evaluators are managed via the admin panel
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="overflow-hidden">
       <section className="relative min-h-[54vh] flex items-center overflow-hidden">
@@ -301,6 +357,62 @@ const Landing = () => {
         </div>
       </section>
 
+      <section className="py-8 lg:py-12 bg-white/60">
+        <div className="app-container">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="soft-badge">Our Evaluator Team</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">Built by experts who review real work</h2>
+              <p className="mt-2 max-w-2xl text-lg text-slate-600">Senior domain specialists score every submission on a transparent rubric so candidates get fair feedback and companies get decision-ready signal.</p>
+            </div>
+            <Link to="/evaluators" className="inline-flex items-center gap-2 text-sm font-semibold text-forge-primary hover:text-forge-primary-dark transition-colors">
+              Meet the full team
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {evaluators.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {evaluators.map((member, i) => (
+                <motion.div
+                  key={member.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="group portal-card overflow-hidden p-0 transition-shadow hover:shadow-elevated"
+                >
+                  <div className="relative overflow-hidden">
+                    <PreviewPhoto member={member} index={i} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/10 to-transparent" />
+                    <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-2">
+                      <h3 className="truncate text-lg font-bold text-white">{member.name}</h3>
+                      {member.rating != null && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-bold text-amber-300 backdrop-blur">
+                          <Star className="h-3 w-3 fill-current" />
+                          {Number(member.rating).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <span className="inline-block rounded-full bg-forge-primary/10 px-2.5 py-1 text-xs font-bold text-forge-primary">{member.field}</span>
+                    <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                      <TrendingUp className="h-4 w-4 text-slate-400" />
+                      {member.exp} experience
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="portal-card p-8 text-center">
+              <p className="text-sm font-medium text-slate-500">Evaluator profiles are being added by our team. Check back soon.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="relative overflow-hidden py-10 lg:py-14">
         <div className="absolute inset-0 bg-gradient-to-br from-forge-primary via-forge-primary-dark to-slate-950" />
         <div className="absolute inset-0 opacity-70">
@@ -330,65 +442,6 @@ const Landing = () => {
           </motion.div>
         </div>
       </section>
-
-      <footer className="bg-slate-950 text-slate-300">
-        <div className="app-container py-8 lg:py-10">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.8fr]">
-            <div>
-              <div className="mb-2.5 flex items-center gap-2.5">
-                <img src="/logo.png" alt="MentriQ Forge" className="h-9 w-auto" />
-                <div>
-                  <p className="font-heading font-bold text-white">MentriQ Forge</p>
-                  <p className="text-sm text-slate-400">By MentriQ Technologies</p>
-                </div>
-              </div>
-              <p className="max-w-md text-sm leading-6 text-slate-400">We help companies hire faster with real proof-of-work and help candidates showcase their true capability through practical, industry-relevant delivery.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">Skill-first hiring</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">Verified project work</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">Faster shortlisting</span>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="mb-2.5 text-sm font-semibold uppercase tracking-[0.2em] text-white">Platform</h3>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link to="/projects" className="hover:text-white transition-colors">Browse Opportunities</Link></li>
-                <li><Link to="/register" className="hover:text-white transition-colors">Join as Company</Link></li>
-                <li><Link to="/register" className="hover:text-white transition-colors">Join as Candidate</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="mb-2.5 text-sm font-semibold uppercase tracking-[0.2em] text-white">Company</h3>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="mailto:support@mentriqtechnologies.in" className="hover:text-white transition-colors">support@mentriqtechnologies.in</a></li>
-                <li><span>Jaipur, Rajasthan, India</span></li>
-                <li><span>Building better hiring outcomes</span></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="mb-2.5 text-sm font-semibold uppercase tracking-[0.2em] text-white">Resources</h3>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="https://www.mentriqtechnologies.in/about" className="hover:text-white transition-colors">About MentriQ</a></li>
-                <li><a href="https://www.mentriqtechnologies.in/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="https://www.mentriqtechnologies.in/terms-of-service" className="hover:text-white transition-colors">Terms of Service</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-4 md:flex-row">
-            <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} MentriQ Technologies. All rights reserved.</p>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
-              <a href="https://www.mentriqtechnologies.in/privacy-policy" className="hover:text-white transition-colors">Privacy</a>
-              <a href="https://www.mentriqtechnologies.in/terms-of-service" className="hover:text-white transition-colors">Terms</a>
-              <a href="https://www.mentriqtechnologies.in/contact" className="hover:text-white transition-colors">Contact</a>
-              <a href="tel:+917665531312" className="hover:text-white transition-colors">Call Us</a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

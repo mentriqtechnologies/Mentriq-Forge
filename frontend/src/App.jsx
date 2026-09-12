@@ -1,12 +1,14 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import AuthCallback from "./pages/AuthCallback";
 import Landing from "./pages/Landing";
 import HowItWorks from "./pages/HowItWorks";
+import EvaluatorTeam from "./pages/EvaluatorTeam";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -38,6 +40,7 @@ import DeletedReports from "./pages/admin/DeletedReports";
 import CandidateVerification from "./pages/admin/CandidateVerification";
 import ApplicationsManager from "./pages/admin/ApplicationsManager";
 import HiredCandidates from "./pages/admin/HiredCandidates";
+import ManageEvaluators from "./pages/admin/ManageEvaluators";
 import EditProject from "./pages/company/EditProject";
 import EvaluatorDashboard from "./pages/evaluator/Dashboard";
 import EvaluatorInterviewDashboard from "./pages/evaluator/InterviewDashboard";
@@ -55,6 +58,7 @@ const PublicLayout = ({ children }) => (
     </a>
     <Navbar />
     <main id="main-content" tabIndex={-1} className="outline-none">{children}</main>
+    <Footer />
   </>
 );
 
@@ -66,6 +70,7 @@ function App() {
       <Routes>
         <Route path="/" element={<PublicLayout><Landing /></PublicLayout>} />
         <Route path="/how-it-works" element={<PublicLayout><HowItWorks /></PublicLayout>} />
+        <Route path="/evaluators" element={<PublicLayout><EvaluatorTeam /></PublicLayout>} />
         <Route path="/auth/callback" element={ <PublicLayout> <AuthCallback /> </PublicLayout>} />
         <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
         <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
@@ -302,6 +307,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AuthLayout><HiredCandidates /></AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/evaluators"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AuthLayout><ManageEvaluators /></AuthLayout>
             </ProtectedRoute>
           }
         />

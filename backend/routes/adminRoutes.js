@@ -14,6 +14,12 @@ const {
   getHiredCandidates,
   getHiredCandidateDetail,
 } = require("../controllers/adminController");
+const {
+  getAllEvaluatorMembers,
+  createEvaluatorMember,
+  updateEvaluatorMember,
+  deleteEvaluatorMember,
+} = require("../controllers/evaluatorMemberController");
 const { protect, authorize } = require("../middleware/auth");
 
 router.use(protect, authorize("admin"));
@@ -22,6 +28,11 @@ router.get("/users", getAllUsers);
 router.post("/users", createStaffUser);
 router.put("/users/:id/status", setUserActiveStatus);
 router.delete("/users/:id", deleteUser);
+
+router.get("/evaluators", getAllEvaluatorMembers);
+router.post("/evaluators", createEvaluatorMember);
+router.put("/evaluators/:id", updateEvaluatorMember);
+router.delete("/evaluators/:id", deleteEvaluatorMember);
 
 router.get("/projects", getAdminProjects);
 router.delete("/projects/:id", adminDeleteProject);

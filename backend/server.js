@@ -5,9 +5,11 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const connectDB = require("./config/db");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const { seedEvaluatorMembers } = require("./utils/seedEvaluators");
 
 dotenv.config();
 connectDB();
+seedEvaluatorMembers();
 
 const app = express();
 
@@ -49,6 +51,7 @@ app.use("/api/github", require("./routes/githubRoutes"));
 app.use("/api/verification", require("./routes/verificationRoutes"));
 app.use("/api/interviews", require("./routes/interviewRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/evaluators", require("./routes/evaluatorRoutes"));
 
 app.use(notFound);
 app.use(errorHandler);

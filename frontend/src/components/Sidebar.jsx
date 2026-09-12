@@ -24,6 +24,7 @@ import {
   Award,
   ClipboardList,
   CalendarClock,
+  UserCheck,
 } from "lucide-react";
 
 const roleNavItems = {
@@ -52,6 +53,7 @@ const roleNavItems = {
     { to: "/admin/verifications", label: "Verify Candidates", icon: Users },
     { to: "/admin/manage-jobs", label: "Manage Jobs & Projects", icon: ClipboardList },
     { to: "/admin/users", label: "Manage Users", icon: Shield },
+    { to: "/admin/evaluators", label: "Evaluators Team", icon: UserCheck },
     { to: "/admin/notifications", label: "Notifications", icon: Bell },
     { to: "/admin/deleted-reports", label: "Deleted Reports", icon: Archive },
     { to: "/admin/hired-candidates", label: "Hired Candidates", icon: Award },
