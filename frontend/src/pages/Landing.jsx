@@ -68,7 +68,7 @@ const PreviewPhoto = ({ member, index }) => {
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}
-        className="h-40 w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+        className={`h-40 w-full object-contain object-center p-2 bg-gradient-to-br ${previewPalette[index % previewPalette.length]} transition-transform duration-500 group-hover:scale-105`}
       />
     );
   }

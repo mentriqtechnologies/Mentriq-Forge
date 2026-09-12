@@ -60,7 +60,7 @@ const MemberPhoto = ({ member, index }) => {
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}
-        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+        className={`h-full w-full object-contain object-center p-2 bg-gradient-to-br ${gradient} transition-transform duration-500 group-hover:scale-105`}
       />
     );
   }
