@@ -68,12 +68,12 @@ const PreviewPhoto = ({ member, index }) => {
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={`h-40 w-full object-contain object-center p-2 bg-gradient-to-br ${previewPalette[index % previewPalette.length]} transition-transform duration-500 group-hover:scale-105`}
+        className={`h-full w-full object-cover object-center bg-gradient-to-br ${previewPalette[index % previewPalette.length]} transition-transform duration-500 group-hover:scale-105`}
       />
     );
   }
   return (
-    <div className={`flex h-40 w-full items-center justify-center bg-gradient-to-br ${previewPalette[index % previewPalette.length]}`}>
+    <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${previewPalette[index % previewPalette.length]}`}>
       <span className="text-4xl font-extrabold text-white/90">
         {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
       </span>
@@ -384,7 +384,7 @@ const Landing = () => {
                   transition={{ delay: i * 0.08 }}
                   className="group portal-card overflow-hidden p-0 transition-shadow hover:shadow-elevated"
                 >
-                  <div className="relative overflow-hidden">
+                  <div className="relative aspect-[4/3] overflow-hidden">
                     <PreviewPhoto member={member} index={i} />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/10 to-transparent" />
                     <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-2">

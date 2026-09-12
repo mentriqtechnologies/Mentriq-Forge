@@ -60,7 +60,7 @@ const MemberPhoto = ({ member, index }) => {
         alt={member.name}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={`h-full w-full object-contain object-center p-2 bg-gradient-to-br ${gradient} transition-transform duration-500 group-hover:scale-105`}
+        className={`h-full w-full object-cover object-center bg-gradient-to-br ${gradient} transition-transform duration-500 group-hover:scale-105`}
       />
     );
   }
@@ -125,7 +125,7 @@ const EvaluatorTeam = () => {
         {loading ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="shimmer h-[330px] rounded-3xl" />
+              <div key={i} className="shimmer h-[440px] rounded-3xl" />
             ))}
           </div>
         ) : (
@@ -190,7 +190,7 @@ const EvaluatorTeam = () => {
                   className="animate-fade-in h-full"
                 >
                   <Card className="group h-full overflow-hidden p-0">
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative aspect-[4/3] overflow-hidden">
                       <MemberPhoto member={evaluator} index={i} />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
 
